@@ -37,7 +37,7 @@ func main() {
 		os.Exit(0)
 	}
 	common.SetupGinLog()
-	common.SysLog("One MCP Backend (from Gin Template) " + common.Version + " started")
+	common.SysLog("One MCP Backend" + common.Version + " started")
 	if os.Getenv("GIN_MODE") != "debug" {
 		gin.SetMode(gin.ReleaseMode)
 	}

@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM node:22-slim AS builder
+FROM node:22-slim AS builder
 
 WORKDIR /build
 COPY ./frontend .
@@ -13,23 +13,51 @@ ARG BUILDPLATFORM
 ARG TARGETOS
 ARG TARGETARCH
 
+# 安装交叉编译工具链
+RUN apt-get update && apt-get install -y \
+    gcc-aarch64-linux-gnu \
+    gcc-x86-64-linux-gnu \
+    && rm -rf /var/lib/apt/lists/*
+
+# 根据目标架构设置交叉编译环境
 ENV GO111MODULE=on \
-    CGO_ENABLED=0 \
+    CGO_ENABLED=1 \
     GOOS=$TARGETOS \
     GOARCH=$TARGETARCH
+
+# 根据目标架构设置C编译器
+RUN if [ "$TARGETARCH" = "arm64" ]; then \
+        echo "Setting up for ARM64 cross-compilation"; \
+        export CC=aarch64-linux-gnu-gcc; \
+    elif [ "$TARGETARCH" = "amd64" ]; then \
+        echo "Setting up for AMD64 cross-compilation"; \
+        export CC=x86_64-linux-gnu-gcc; \
+    fi
 
 WORKDIR /build
 
 # 优化：先复制依赖文件，利用Docker缓存
 COPY go.mod go.sum ./
-RUN go mod download
+RUN if [ "$TARGETARCH" = "arm64" ]; then \
+        CC=aarch64-linux-gnu-gcc go mod download; \
+    elif [ "$TARGETARCH" = "amd64" ]; then \
+        CC=x86_64-linux-gnu-gcc go mod download; \
+    else \
+        go mod download; \
+    fi
 
 # 然后复制源代码和前端构建产物
 COPY . .
 COPY --from=builder /build/dist ./frontend/dist
 
 # 最后构建
-RUN go build -ldflags "-s -w -X 'one-mcp/common.Version=$(cat VERSION)' -extldflags '-static'" -o one-mcp
+RUN if [ "$TARGETARCH" = "arm64" ]; then \
+        CC=aarch64-linux-gnu-gcc go build -ldflags "-s -w -X 'one-mcp/common.Version=$(cat VERSION)' -extldflags '-static'" -o one-mcp; \
+    elif [ "$TARGETARCH" = "amd64" ]; then \
+        CC=x86_64-linux-gnu-gcc go build -ldflags "-s -w -X 'one-mcp/common.Version=$(cat VERSION)' -extldflags '-static'" -o one-mcp; \
+    else \
+        go build -ldflags "-s -w -X 'one-mcp/common.Version=$(cat VERSION)' -extldflags '-static'" -o one-mcp; \
+    fi
 
 FROM alpine
 
