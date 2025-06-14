@@ -1,4 +1,4 @@
-FROM node:22-slim AS builder
+FROM --platform=$BUILDPLATFORM node:22-slim AS builder
 
 WORKDIR /build
 COPY ./frontend .
@@ -6,11 +6,17 @@ COPY ./VERSION .
 RUN npm install
 RUN REACT_APP_VERSION=$(cat VERSION) npm run build
 
-FROM golang AS builder2
+FROM --platform=$BUILDPLATFORM golang AS builder2
+
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
+ARG TARGETOS
+ARG TARGETARCH
 
 ENV GO111MODULE=on \
-    CGO_ENABLED=1 \
-    GOOS=linux
+    CGO_ENABLED=0 \
+    GOOS=$TARGETOS \
+    GOARCH=$TARGETARCH
 
 WORKDIR /build
 
