@@ -91,12 +91,7 @@ cd one-mcp
 # Set up environment
 cp .env_example .env
 
-# Install dependencies and build
-go mod tidy
-cd frontend && npm install && npm run build && cd ..
-
-# Run the application
-go run main.go
+bash ./run.sh
 ```
 
 **Default Login**: Username `root`, Password `123456`
