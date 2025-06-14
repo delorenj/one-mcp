@@ -2,6 +2,8 @@
 
 # Set error handling
 set -e
+echo "Building frontend..."
+cd frontend && npm install && npm run build && cd ..
 
 # Load .env environment variables
 if [ -f .env ]; then
@@ -21,8 +23,6 @@ lsof -ti:$PORT | xargs kill -9 2>/dev/null || echo "No existing backend processe
 
 # Store process IDs
 BACKEND_PID=""
-FRONTEND_PID=""
-
 # Cleanup function
 cleanup() {
     echo -e "\nShutting down servers..."
