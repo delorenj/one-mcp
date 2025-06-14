@@ -33,8 +33,8 @@ func init() {
 		SQLitePath = os.Getenv("SQLITE_PATH")
 	} else {
 		// check if the directory exists
-		if _, err := os.Stat(SQLitePath); os.IsNotExist(err) {
-			err = os.Mkdir(filepath.Dir(SQLitePath), 0755)
+		if _, err := os.Stat(filepath.Dir(SQLitePath)); os.IsNotExist(err) {
+			err = os.MkdirAll(filepath.Dir(SQLitePath), 0755)
 			if err != nil {
 				log.Fatal(err)
 			}
