@@ -492,43 +492,45 @@
     },
     "serviceConfigModal": {
         "title": "Service Configuration",
-        "description": "Adjust the settings for this service. Click save when you're done.",
-        "sections": {
-            "environmentVariables": "Environment Variables",
-            "noEnvironmentVariables": "No environment variables for this service.",
-            "serviceEndpoints": "Service Endpoints",
-            "sseEndpoint": "SSE Endpoint",
-            "httpEndpoint": "HTTP Endpoint",
-            "sseConfigJson": "SSE Configuration (JSON)",
-            "httpConfigJson": "HTTP Configuration (JSON)",
-            "rpdLimit": "Daily Request Limit (RPD)",
-            "currentLimit": "Current limit:",
-            "unlimited": "(unlimited)",
-            "requestsPerDay": "requests/day"
-        },
+        "description": "Configure your service settings and view endpoint details.",
         "actions": {
             "save": "Save",
             "saving": "Saving...",
             "close": "Close",
             "copySSEConfig": "Copy SSE Config",
             "copyHTTPConfig": "Copy HTTP Config",
-            "limitPlaceholder": "0 means unlimited"
+            "copyConfigLabel": "Copy Endpoint Config",
+            "copyHeaderText": "Copy Header Text",
+            "limitPlaceholder": "Enter limit (0 for unlimited)"
+        },
+        "sections": {
+            "environmentVariables": "Environment Variables",
+            "noEnvironmentVariables": "No environment variables configured for this service.",
+            "serviceEndpoints": "Service Endpoints",
+            "urlPlaceholder": "Endpoint URL will appear here",
+            "sseConfigJson": "SSE Configuration (JSON)",
+            "httpConfigJson": "HTTP Configuration (JSON)",
+            "rpdLimit": "Daily Request Limit (RPD)",
+            "currentLimit": "Current limit:",
+            "requestsPerDay": "requests/day",
+            "unlimited": " (Unlimited)"
         },
         "messages": {
-            "sseConfigCopied": "SSE Config Copied",
-            "sseConfigCopiedDesc": "SSE endpoint MCP server configuration copied to clipboard",
-            "httpConfigCopied": "HTTP Config Copied",
-            "httpConfigCopiedDesc": "HTTP endpoint MCP server configuration copied to clipboard",
-            "copyFailed": "Copy Failed",
-            "clipboardNotSupported": "Clipboard functionality unavailable",
-            "manualCopyHint": "Due to security restrictions, automatic copy function is not available in HTTP environment. Please use the text area below to manually copy the configuration.",
-            "selectAllHint": "Click the text area to select all content, then use Ctrl+C (or Cmd+C) to copy",
-            "updateSuccess": "Update Success",
-            "rpdLimitUpdated": "Daily request limit updated to {{limit}}",
-            "unlimitedValue": "unlimited",
-            "updateFailed": "Update Failed",
-            "saveFailed": "Save failed",
-            "rpdUpdateError": "Error occurred while updating RPD limit"
+            "saveFailed": "Failed to save environment variable.",
+            "sseConfigCopied": "SSE config copied",
+            "sseConfigCopiedDesc": "The SSE client configuration has been copied to your clipboard.",
+            "httpConfigCopied": "HTTP config copied",
+            "httpConfigCopiedDesc": "The HTTP client configuration has been copied to your clipboard.",
+            "headerCopied": "Header copied to clipboard",
+            "copyFailed": "Failed to copy to clipboard.",
+            "manualCopyHint": "Clipboard access might be restricted. Please select and copy the text manually.",
+            "selectAllHint": "Click to select all and press Ctrl+C (or Cmd+C) to copy.",
+            "clipboardNotSupported": "Clipboard access is not available in this browser or context (e.g. HTTP).",
+            "updateSuccess": "Update successful",
+            "updateFailed": "Update failed",
+            "rpdLimitUpdated": "RPD limit updated to {limit}.",
+            "rpdUpdateError": "An unexpected error occurred while updating the RPD limit.",
+            "unlimitedValue": "Unlimited"
         }
     }
 }

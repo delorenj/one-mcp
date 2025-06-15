@@ -15,6 +15,7 @@ export interface CopyResult {
  * @returns Promise<CopyResult> 复制结果
  */
 export async function copyToClipboard(text: string): Promise<CopyResult> {
+    debugger;
     // 检查是否支持现代剪贴板 API
     if (navigator.clipboard && window.isSecureContext) {
         try {
@@ -38,6 +39,7 @@ export async function copyToClipboard(text: string): Promise<CopyResult> {
  */
 function fallbackCopyToClipboard(text: string): CopyResult {
     try {
+        debugger;
         // 创建临时文本区域
         const textArea = document.createElement('textarea');
         textArea.value = text;
