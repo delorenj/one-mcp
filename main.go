@@ -59,12 +59,18 @@ func main() {
 	}()
 
 	// Initialize i18n
-	err = i18n.Init("./backend/locales")
+	localesPath := "./backend/locales"
+	// In Docker environment, try absolute path if relative path fails
+	err = i18n.Init(localesPath)
+	if err != nil {
+		localesPath = "/backend/locales"
+		err = i18n.Init(localesPath)
+	}
 	if err != nil {
 		common.SysError("Failed to initialize i18n: " + err.Error())
 		// Continue without i18n rather than failing completely
 	} else {
-		common.SysLog("i18n initialized successfully")
+		common.SysLog("i18n initialized successfully from: " + localesPath)
 	}
 
 	// Seed default services

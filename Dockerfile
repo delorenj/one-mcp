@@ -74,6 +74,7 @@ ENV PORT=3000
 ENV SQLITE_PATH=/data/one-mcp.db
 
 COPY --from=builder2 /build/one-mcp /
+COPY --from=builder2 /build/backend/locales /backend/locales
 EXPOSE 3000
 WORKDIR /data
 ENTRYPOINT ["/one-mcp"]
