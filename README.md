@@ -64,6 +64,7 @@ One MCP is a comprehensive management platform for Model Context Protocol (MCP) 
 - **Docker Ready**: Full Docker support for easy deployment
 
 ![Screenshot](./images/services.png)
+![Screenshot](./images/copy_config.png)
 
 ## Quick Start
 

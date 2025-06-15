@@ -66,6 +66,7 @@ One MCP 是一个全面的模型上下文协议 (MCP) 服务管理平台。作�
 
 <!-- 截图占位符 - 服务管理界面 -->
 ![Screenshot](./images/services.png)
+![Screenshot](./images/copy_config.png)
 
 ## 快速开始
 
