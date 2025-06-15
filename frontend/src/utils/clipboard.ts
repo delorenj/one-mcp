@@ -15,36 +15,28 @@ export interface CopyResult {
  * @returns Promise<CopyResult> 复制结果
  */
 export async function copyToClipboard(text: string): Promise<CopyResult> {
-    debugger;
-    // 检查是否支持现代剪贴板 API
     if (navigator.clipboard && window.isSecureContext) {
         try {
             await navigator.clipboard.writeText(text);
             return { success: true, method: 'modern' };
         } catch (error) {
             console.warn('Modern clipboard API failed:', error);
-            // 降级到传统方法
             return fallbackCopyToClipboard(text);
         }
     }
-
-    // 降级到传统方法
     return fallbackCopyToClipboard(text);
 }
 
 /**
  * 传统的复制方法（降级方案）
  * @param text 要复制的文本
- * @returns CopyResult 复制结果
+ * @returns Promise<CopyResult> 复制结果
  */
-function fallbackCopyToClipboard(text: string): CopyResult {
-    try {
-        debugger;
-        // 创建临时文本区域
+function fallbackCopyToClipboard(text: string): Promise<CopyResult> {
+    return new Promise((resolve) => {
         const textArea = document.createElement('textarea');
         textArea.value = text;
 
-        // 设置样式使其不可见
         textArea.style.position = 'fixed';
         textArea.style.left = '-999999px';
         textArea.style.top = '-999999px';
@@ -52,29 +44,35 @@ function fallbackCopyToClipboard(text: string): CopyResult {
         textArea.style.pointerEvents = 'none';
 
         document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
 
-        // 尝试执行复制命令
-        const successful = document.execCommand('copy');
-        document.body.removeChild(textArea);
+        requestAnimationFrame(() => {
+            let successful = false;
+            let execError: any = null;
+            try {
+                textArea.focus();
+                textArea.select();
+                successful = document.execCommand('copy');
+                if (!successful) {
+                    console.warn('fallbackCopyToClipboard: document.execCommand(\'copy\') returned false.');
+                }
+            } catch (error) {
+                console.error('Error during fallbackCopyToClipboard execCommand:', error);
+                execError = error;
+            } finally {
+                document.body.removeChild(textArea);
+            }
 
-        if (successful) {
-            return { success: true, method: 'legacy' };
-        } else {
-            return {
-                success: false,
-                error: 'execCommand_failed',
-                method: 'manual'
-            };
-        }
-    } catch (error) {
-        return {
-            success: false,
-            error: 'clipboard_not_supported',
-            method: 'manual'
-        };
-    }
+            if (successful) {
+                resolve({ success: true, method: 'legacy' });
+            } else {
+                resolve({
+                    success: false,
+                    error: execError ? 'clipboard_not_supported' : 'execCommand_failed',
+                    method: 'manual'
+                });
+            }
+        });
+    });
 }
 
 /**
