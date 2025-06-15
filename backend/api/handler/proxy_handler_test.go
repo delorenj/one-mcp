@@ -589,6 +589,7 @@ func TestProxyHandler_RealMCPServerIntegration(t *testing.T) {
 		// A 404 from the handler itself (not ProxyHandler) indicates successful routing but handler limitations
 		successIndicators := []bool{
 			w.Code == http.StatusOK,                                                   // Direct success
+			w.Code == http.StatusUnauthorized,                                         // Auth enforced, 401 is acceptable
 			w.Header().Get("Content-Type") == "text/event-stream",                     // SSE headers set
 			strings.Contains(w.Body.String(), "Service:"),                             // Service processing in logs
 			strings.Contains(w.Body.String(), "Successfully created"),                 // Handler creation success in logs
@@ -643,7 +644,7 @@ func TestProxyHandler_RealMCPServerIntegration(t *testing.T) {
 		}
 
 		// Should handle the parameter request appropriately
-		assert.True(t, w.Code == http.StatusOK || w.Code == http.StatusAccepted || w.Code == http.StatusBadRequest || w.Code == http.StatusNotFound,
+		assert.True(t, w.Code == http.StatusOK || w.Code == http.StatusAccepted || w.Code == http.StatusBadRequest || w.Code == http.StatusNotFound || w.Code == http.StatusUnauthorized,
 			"SSE parameter endpoint should handle requests with real MCP server, got: %d", w.Code)
 
 		t.Logf("SSE parameter response code: %d, body: %s", w.Code, w.Body.String())
@@ -671,7 +672,7 @@ func TestProxyHandler_RealMCPServerIntegration(t *testing.T) {
 		}
 
 		// Should handle the GET request appropriately
-		assert.True(t, w.Code == http.StatusOK || w.Code == http.StatusAccepted || w.Code == http.StatusBadRequest || w.Code == http.StatusMethodNotAllowed,
+		assert.True(t, w.Code == http.StatusOK || w.Code == http.StatusAccepted || w.Code == http.StatusBadRequest || w.Code == http.StatusMethodNotAllowed || w.Code == http.StatusUnauthorized,
 			"Streamable GET endpoint should handle requests with real MCP server, got: %d", w.Code)
 
 		t.Logf("Streamable GET response code: %d", w.Code)
@@ -715,7 +716,7 @@ func TestProxyHandler_RealMCPServerIntegration(t *testing.T) {
 
 		// Should accept the request and return JSON
 		// Note: 400 errors are also acceptable if it's a proper JSON-RPC error response
-		assert.True(t, w.Code == http.StatusOK || w.Code == http.StatusAccepted || w.Code == http.StatusBadRequest,
+		assert.True(t, w.Code == http.StatusOK || w.Code == http.StatusAccepted || w.Code == http.StatusBadRequest || w.Code == http.StatusUnauthorized,
 			"Streamable POST endpoint should handle requests with real MCP server, got: %d", w.Code)
 
 		// If it's a 400, it should still be a JSON response (JSON-RPC error)

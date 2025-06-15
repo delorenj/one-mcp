@@ -91,10 +91,6 @@ func SetApiRouter(route *gin.Engine) {
 			// Public endpoints (read-only, require authentication)
 			mcpServiceRoute.Use(middleware.JWTAuth())
 			{
-				mcpServiceRoute.GET("/", handler.GetAllMCPServices)
-				mcpServiceRoute.GET("/:id", handler.GetMCPService)
-				mcpServiceRoute.GET("/:id/config/:client", handler.GetMCPServiceConfig)
-				mcpServiceRoute.GET("/:id/health", handler.GetMCPServiceHealth)
 				mcpServiceRoute.POST("/:id/health/check", handler.CheckMCPServiceHealth)
 			}
 
@@ -103,9 +99,7 @@ func SetApiRouter(route *gin.Engine) {
 			adminMCPServiceRoute.Use(middleware.JWTAuth())   // First authenticate with JWT
 			adminMCPServiceRoute.Use(middleware.AdminAuth()) // Then check admin privileges
 			{
-				adminMCPServiceRoute.POST("/", handler.CreateMCPService)
 				adminMCPServiceRoute.PUT("/:id", handler.UpdateMCPService)
-				adminMCPServiceRoute.DELETE("/:id", handler.DeleteMCPService)
 				adminMCPServiceRoute.POST("/:id/toggle", handler.ToggleMCPService)
 			}
 		}
