@@ -40,26 +40,67 @@ function fallbackCopyToClipboard(text: string): Promise<CopyResult> {
         textArea.style.position = 'fixed';
         textArea.style.left = '-999999px';
         textArea.style.top = '-999999px';
-        textArea.style.opacity = '0';
-        textArea.style.pointerEvents = 'none';
+        textArea.setAttribute('readonly', '');
+        textArea.style.width = '1px';
+        textArea.style.height = '1px';
+        textArea.style.padding = '0';
+        textArea.style.border = 'none';
+        textArea.style.outline = 'none';
 
-        document.body.appendChild(textArea);
+        // 尝试将 textarea 插入到当前对话框内部（如果存在），以避免焦点陷阱阻止 focus
+        let container: HTMLElement | null = null;
+        const activeEl = document.activeElement as HTMLElement | null;
+        if (activeEl) {
+            const dialogEl = activeEl.closest('[role="dialog"]') as HTMLElement | null;
+            if (dialogEl) {
+                container = dialogEl;
+            }
+        }
+        if (!container) {
+            container = document.body;
+        }
+        container.appendChild(textArea);
 
         requestAnimationFrame(() => {
             let successful = false;
             let execError: any = null;
+
+            const selection = window.getSelection();
+            if (selection) {
+                selection.removeAllRanges();
+            }
+
+            console.log('[Clipboard] Fallback: Active element before focus/select:', document.activeElement?.outerHTML.substring(0, 100));
+            console.log('[Clipboard] Fallback: Current selection before focus/select:', selection?.toString());
+
             try {
-                textArea.focus();
+                textArea.focus({ preventScroll: true });
                 textArea.select();
+
+                console.log('[Clipboard] Fallback: Active element after focus/select:', document.activeElement?.outerHTML.substring(0, 100));
+                const currentSelectionText = window.getSelection()?.toString();
+                console.log('[Clipboard] Fallback: Current selection after focus/select:', currentSelectionText);
+                console.log('[Clipboard] Fallback: TextArea value to copy:', textArea.value);
+
+                if (document.activeElement !== textArea || currentSelectionText !== text) {
+                    console.warn(
+                        `[Clipboard] Fallback: Failed to properly focus/select the temporary textarea. ` +
+                        `Expected to copy: "${text.substring(0, 50)}...", ` +
+                        `Actual selection: "${(currentSelectionText || '').substring(0, 50)}...", ` +
+                        `Active element is textarea: ${document.activeElement === textArea}`
+                    );
+                }
+
                 successful = document.execCommand('copy');
+
                 if (!successful) {
-                    console.warn('fallbackCopyToClipboard: document.execCommand(\'copy\') returned false.');
+                    console.warn('[Clipboard] Fallback: document.execCommand(\'copy\') returned false.');
                 }
             } catch (error) {
-                console.error('Error during fallbackCopyToClipboard execCommand:', error);
+                console.error('[Clipboard] Fallback: Error during execCommand:', error);
                 execError = error;
             } finally {
-                document.body.removeChild(textArea);
+                textArea.remove();
             }
 
             if (successful) {
