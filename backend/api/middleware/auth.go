@@ -85,32 +85,22 @@ func TokenAuth() gin.HandlerFunc {
 		var username string
 		var role int
 
-		// First, try to get JWT token from Authorization header
+		// First, try to get user token from Authorization header
 		authHeader := c.GetHeader("Authorization")
 		if authHeader != "" {
 			parts := strings.Split(authHeader, " ")
 			if len(parts) == 2 && parts[0] == "Bearer" {
 				tokenString := parts[1]
-				claims, err := service.ValidateToken(tokenString)
-				if err == nil {
-					// Check if token is blacklisted
-					if common.RedisEnabled {
-						blacklisted, _ := common.RDB.Exists(c, "jwt:blacklist:"+tokenString).Result()
-						if blacklisted <= 0 {
-							userID = claims.UserID
-							username = claims.Username
-							role = claims.Role
-						}
-					} else {
-						userID = claims.UserID
-						username = claims.Username
-						role = claims.Role
-					}
+				user := model.ValidateUserTokenByTokenString(tokenString)
+				if user != nil && user.Status == common.UserStatusEnabled {
+					userID = user.ID
+					username = user.Username
+					role = user.Role
 				}
 			}
 		}
 
-		// If JWT validation failed or no JWT, try user token from URL query parameter
+		// If header token validation failed or no header token, try user token from URL query parameter
 		if userID == 0 {
 			userToken := c.Query("key")
 			if userToken != "" {

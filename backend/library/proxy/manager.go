@@ -305,7 +305,7 @@ func (m *ServiceManager) UpdateMCPServiceHealth(serviceID int64) error {
 // StartDaemon starts the daemon thread for auto-restarting stopped services
 func (m *ServiceManager) StartDaemon() {
 	go func() {
-		ticker := time.NewTicker(300 * time.Second)
+		ticker := time.NewTicker(600 * time.Second)
 		defer ticker.Stop()
 
 		for range ticker.C {

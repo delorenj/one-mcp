@@ -2,11 +2,15 @@ import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Check, Copy } from 'lucide-react';
+import { Check, Copy, AlertCircle } from 'lucide-react';
 import { useServerAddress } from '@/hooks/useServerAddress';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from 'react-i18next';
+import { copyToClipboard, getClipboardErrorMessage, isClipboardSupported } from '@/utils/clipboard';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface ServiceConfigModalProps {
     open: boolean;
@@ -28,9 +32,11 @@ const ServiceConfigModal: React.FC<ServiceConfigModalProps> = ({ open, service, 
     const [copied, setCopied] = useState<{ [k: string]: boolean }>({});
     const [error, setError] = useState<string | null>(null);
     const [userToken, setUserToken] = useState<string>('');
+    const [showManualCopy, setShowManualCopy] = useState<{ [k: string]: boolean }>({});
     const serverAddress = useServerAddress();
     const { currentUser, updateUserInfo } = useAuth();
     const { toast } = useToast();
+    const [selectedEndpointType, setSelectedEndpointType] = useState<'sse' | 'streamableHttp'>('streamableHttp');
 
     React.useEffect(() => {
         setEnvValues(getEnvVars(service));
@@ -96,17 +102,27 @@ const ServiceConfigModal: React.FC<ServiceConfigModalProps> = ({ open, service, 
     const isAdmin = currentUser?.role && currentUser.role >= 10;
 
     // 生成 endpoint
-    const sseEndpoint = serverAddress ? `${serverAddress}/proxy/${service?.name || ''}/sse${userToken ? `?key=${userToken}` : ''}` : '';
+    const sseEndpoint = serverAddress ? `${serverAddress}/proxy/${service?.name || ''}/sse` : '';
     const httpEndpoint = serverAddress ? `${serverAddress}/proxy/${service?.name || ''}/mcp${userToken ? `?key=${userToken}` : ''}` : '';
 
     // 生成 SSE JSON 配置
     const generateSSEJSONConfig = () => {
         const serviceName = service?.name || 'unknown-service';
+        const serverConfig: any = {
+            type: 'sse',
+            url: sseEndpoint
+        };
+
+        // 如果有用户token，添加Authorization header
+        if (userToken) {
+            serverConfig.header = {
+                "Authorization": `Bearer ${userToken}`
+            };
+        }
+
         const config = {
             mcpServers: {
-                [serviceName]: {
-                    url: sseEndpoint
-                }
+                [serviceName]: serverConfig
             }
         };
         return JSON.stringify(config, null, 2);
@@ -118,6 +134,7 @@ const ServiceConfigModal: React.FC<ServiceConfigModalProps> = ({ open, service, 
         const config = {
             mcpServers: {
                 [serviceName]: {
+                    type: 'streamableHttp',
                     url: httpEndpoint
                 }
             }
@@ -127,39 +144,69 @@ const ServiceConfigModal: React.FC<ServiceConfigModalProps> = ({ open, service, 
 
     const handleCopySSE = async () => {
         const jsonConfig = generateSSEJSONConfig();
-        try {
-            await navigator.clipboard.writeText(jsonConfig);
+        const result = await copyToClipboard(jsonConfig);
+
+        if (result.success) {
             setCopied((prev) => ({ ...prev, 'sse': true }));
             setTimeout(() => setCopied((prev) => ({ ...prev, 'sse': false })), 1200);
             toast({
                 title: t('serviceConfigModal.messages.sseConfigCopied'),
                 description: t('serviceConfigModal.messages.sseConfigCopiedDesc')
             });
-        } catch {
+        } else {
+            // 显示手动复制区域
+            setShowManualCopy((prev) => ({ ...prev, 'sse': true }));
+            const errorMessageKey = getClipboardErrorMessage(result.error);
             toast({
                 variant: "destructive",
                 title: t('serviceConfigModal.messages.copyFailed'),
-                description: t('serviceConfigModal.messages.clipboardError')
+                description: t(errorMessageKey)
             });
         }
     };
 
     const handleCopyHTTP = async () => {
         const jsonConfig = generateHTTPJSONConfig();
-        try {
-            await navigator.clipboard.writeText(jsonConfig);
+        const result = await copyToClipboard(jsonConfig);
+
+        if (result.success) {
             setCopied((prev) => ({ ...prev, 'http': true }));
             setTimeout(() => setCopied((prev) => ({ ...prev, 'http': false })), 1200);
             toast({
                 title: t('serviceConfigModal.messages.httpConfigCopied'),
                 description: t('serviceConfigModal.messages.httpConfigCopiedDesc')
             });
-        } catch {
+        } else {
+            // 显示手动复制区域
+            setShowManualCopy((prev) => ({ ...prev, 'http': true }));
+            const errorMessageKey = getClipboardErrorMessage(result.error);
             toast({
                 variant: "destructive",
                 title: t('serviceConfigModal.messages.copyFailed'),
-                description: t('serviceConfigModal.messages.clipboardError')
+                description: t(errorMessageKey)
             });
+        }
+    };
+
+    const handleCopyHeaderText = async () => {
+        if (!userToken) return;
+        const headerText = `Authorization=Bearer ${userToken}`;
+        const result = await copyToClipboard(headerText);
+
+        if (result.success) {
+            setCopied((prev) => ({ ...prev, 'headerText': true }));
+            setTimeout(() => setCopied((prev) => ({ ...prev, 'headerText': false })), 1200);
+            toast({
+                title: t('serviceConfigModal.messages.headerCopied', 'Header copied to clipboard'), // Placeholder for new translation
+            });
+        } else {
+            const errorMessageKey = getClipboardErrorMessage(result.error);
+            toast({
+                variant: "destructive",
+                title: t('serviceConfigModal.messages.copyFailed'),
+                description: t(errorMessageKey)
+            });
+            // Optionally, implement manual copy for header text if needed, similar to JSON sections
         }
     };
 
@@ -257,32 +304,108 @@ const ServiceConfigModal: React.FC<ServiceConfigModalProps> = ({ open, service, 
                 {/* 端点地址部分 - 所有用户都可以看到 */}
                 <div className="space-y-3">
                     <div className="text-sm font-medium text-foreground mb-2">{t('serviceConfigModal.sections.serviceEndpoints')}</div>
-                    <div className="flex items-center gap-2">
-                        <span className="w-28 text-sm font-medium">{t('serviceConfigModal.sections.sseEndpoint')}</span>
-                        <Input value={sseEndpoint} readOnly className="flex-1" />
+
+                    {/* 安全上下文警告 */}
+                    {!isClipboardSupported() && (
+                        <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-md">
+                            <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                            <div className="text-sm text-amber-800">
+                                <p className="font-medium">{t('serviceConfigModal.messages.clipboardNotSupported')}</p>
+                                <p className="mt-1">{t('serviceConfigModal.messages.manualCopyHint')}</p>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Service Type Dropdown */}
+                    <div className="space-y-2">
+                        <Label htmlFor="endpoint-type" className="text-xs text-muted-foreground">{t('customServiceModal.form.serviceType', 'Service Type')}</Label>
+                        <Select
+                            value={selectedEndpointType}
+                            onValueChange={(value: 'sse' | 'streamableHttp') => setSelectedEndpointType(value)}
+                        >
+                            <SelectTrigger id="endpoint-type" className="w-full">
+                                <SelectValue placeholder="Select endpoint type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="streamableHttp">{t('customServiceModal.serviceTypes.streamableHttp', 'Streamable HTTP')}</SelectItem>
+                                <SelectItem value="sse">{t('customServiceModal.serviceTypes.sse', 'Server-Sent Events (SSE)')}</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    {/* Label for Copy Config */}
+                    <div className="mt-3">
+                        <Label htmlFor="endpoint-url-input" className="text-xs text-muted-foreground">
+                            {t('serviceConfigModal.actions.copyConfigLabel', 'Copy Endpoint Config')}
+                        </Label>
+                    </div>
+
+                    {/* URL display and Copy JSON button */}
+                    <div className="flex items-center gap-2 mt-1">
+                        <Input
+                            id="endpoint-url-input"
+                            value={selectedEndpointType === 'sse' ? sseEndpoint : httpEndpoint}
+                            readOnly
+                            className="flex-1"
+                            placeholder={t('serviceConfigModal.sections.urlPlaceholder', 'Endpoint URL will appear here')}
+                        />
                         <Button
                             size="icon"
                             variant="ghost"
-                            onClick={handleCopySSE}
-                            disabled={!sseEndpoint}
-                            title={t('serviceConfigModal.actions.copySSEConfig')}
+                            onClick={selectedEndpointType === 'sse' ? handleCopySSE : handleCopyHTTP}
+                            disabled={!(selectedEndpointType === 'sse' ? sseEndpoint : httpEndpoint)}
+                            title={selectedEndpointType === 'sse' ? t('serviceConfigModal.actions.copySSEConfig') : t('serviceConfigModal.actions.copyHTTPConfig')}
                         >
-                            {copied['sse'] ? <Check className="text-green-500 w-5 h-5" /> : <Copy className="w-5 h-5" />}
+                            {copied[selectedEndpointType === 'sse' ? 'sse' : 'http'] ? <Check className="text-green-500 w-5 h-5" /> : <Copy className="w-5 h-5" />}
                         </Button>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <span className="w-28 text-sm font-medium">{t('serviceConfigModal.sections.httpEndpoint')}</span>
-                        <Input value={httpEndpoint} readOnly className="flex-1" />
-                        <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={handleCopyHTTP}
-                            disabled={!httpEndpoint}
-                            title={t('serviceConfigModal.actions.copyHTTPConfig')}
-                        >
-                            {copied['http'] ? <Check className="text-green-500 w-5 h-5" /> : <Copy className="w-5 h-5" />}
-                        </Button>
-                    </div>
+
+                    {/* Conditional SSE Header display and its copy button */}
+                    {selectedEndpointType === 'sse' && userToken && (
+                        <div className="mt-2 flex items-center gap-2">
+                            <Input
+                                value={`Authorization=Bearer ${userToken}`}
+                                readOnly
+                                className="flex-1 text-xs font-mono"
+                            />
+                            <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={handleCopyHeaderText}
+                                title={t('serviceConfigModal.actions.copyHeaderText', 'Copy Header Text')}
+                            >
+                                {copied['headerText'] ? <Check className="text-green-500 w-5 h-5" /> : <Copy className="w-5 h-5" />}
+                            </Button>
+                        </div>
+                    )}
+
+                    {/* Conditional Manual Copy JSON Area */}
+                    {selectedEndpointType === 'sse' && showManualCopy['sse'] && (
+                        <div className="space-y-2 mt-2"> {/* Added mt-2 for spacing */}
+                            <div className="text-sm font-medium text-foreground">{t('serviceConfigModal.sections.sseConfigJson')}</div>
+                            <Textarea
+                                value={generateSSEJSONConfig()}
+                                readOnly
+                                className="font-mono text-xs"
+                                rows={8}
+                                onClick={(e) => e.currentTarget.select()}
+                            />
+                            <p className="text-xs text-muted-foreground">{t('serviceConfigModal.messages.selectAllHint')}</p>
+                        </div>
+                    )}
+                    {selectedEndpointType === 'streamableHttp' && showManualCopy['http'] && (
+                        <div className="space-y-2 mt-2"> {/* Added mt-2 for spacing */}
+                            <div className="text-sm font-medium text-foreground">{t('serviceConfigModal.sections.httpConfigJson')}</div>
+                            <Textarea
+                                value={generateHTTPJSONConfig()}
+                                readOnly
+                                className="font-mono text-xs"
+                                rows={8}
+                                onClick={(e) => e.currentTarget.select()}
+                            />
+                            <p className="text-xs text-muted-foreground">{t('serviceConfigModal.messages.selectAllHint')}</p>
+                        </div>
+                    )}
                 </div>
 
                 {/* 每日请求限制 (RPD) 配置 */}

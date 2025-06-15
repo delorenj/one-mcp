@@ -94,6 +94,11 @@
         "error": "错误",
         "fetchDataFailed": "获取数据失败"
     },
+    "clipboardError": {
+        "accessDenied": "无法访问剪贴板。请确保网站通过 HTTPS 访问，或在浏览器设置中允许剪贴板访问。",
+        "execCommandFailed": "复制功能不可用。请手动选择并复制文本。",
+        "notSupported": "您的浏览器不支持剪贴板操作。请手动选择并复制文本。"
+    },
     "services": {
         "title": "MCP 服务",
         "description": "管理和配置您的多云平台服务",
@@ -494,6 +499,8 @@
             "serviceEndpoints": "服务端点",
             "sseEndpoint": "SSE端点",
             "httpEndpoint": "HTTP端点",
+            "sseConfigJson": "SSE配置 (JSON格式)",
+            "httpConfigJson": "HTTP配置 (JSON格式)",
             "rpdLimit": "每日请求次数限制 (RPD)",
             "currentLimit": "当前限制:",
             "unlimited": "(无限制)",
@@ -513,7 +520,9 @@
             "httpConfigCopied": "HTTP配置已复制",
             "httpConfigCopiedDesc": "HTTP端点的MCP服务器配置已复制到剪贴板",
             "copyFailed": "复制失败",
-            "clipboardError": "无法访问剪贴板",
+            "clipboardNotSupported": "剪贴板功能不可用",
+            "manualCopyHint": "由于安全限制，自动复制功能在HTTP环境下不可用。请使用下方的文本区域手动复制配置。",
+            "selectAllHint": "点击文本区域可全选内容，然后使用 Ctrl+C (或 Cmd+C) 复制",
             "updateSuccess": "更新成功",
             "rpdLimitUpdated": "每日请求限制已更新为 {{limit}}",
             "unlimitedValue": "无限制",

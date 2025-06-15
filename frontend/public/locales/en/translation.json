@@ -94,6 +94,11 @@
         "error": "Error",
         "fetchDataFailed": "Failed to fetch data"
     },
+    "clipboardError": {
+        "accessDenied": "Cannot access clipboard. Please ensure the website is accessed via HTTPS, or allow clipboard access in browser settings.",
+        "execCommandFailed": "Copy function is not available. Please manually select and copy the text.",
+        "notSupported": "Your browser does not support clipboard operations. Please manually select and copy the text."
+    },
     "services": {
         "title": "MCP Services",
         "description": "Manage and configure your multi-cloud platform services",
@@ -494,6 +499,8 @@
             "serviceEndpoints": "Service Endpoints",
             "sseEndpoint": "SSE Endpoint",
             "httpEndpoint": "HTTP Endpoint",
+            "sseConfigJson": "SSE Configuration (JSON)",
+            "httpConfigJson": "HTTP Configuration (JSON)",
             "rpdLimit": "Daily Request Limit (RPD)",
             "currentLimit": "Current limit:",
             "unlimited": "(unlimited)",
@@ -513,7 +520,9 @@
             "httpConfigCopied": "HTTP Config Copied",
             "httpConfigCopiedDesc": "HTTP endpoint MCP server configuration copied to clipboard",
             "copyFailed": "Copy Failed",
-            "clipboardError": "Cannot access clipboard",
+            "clipboardNotSupported": "Clipboard functionality unavailable",
+            "manualCopyHint": "Due to security restrictions, automatic copy function is not available in HTTP environment. Please use the text area below to manually copy the configuration.",
+            "selectAllHint": "Click the text area to select all content, then use Ctrl+C (or Cmd+C) to copy",
             "updateSuccess": "Update Success",
             "rpdLimitUpdated": "Daily request limit updated to {{limit}}",
             "unlimitedValue": "unlimited",
