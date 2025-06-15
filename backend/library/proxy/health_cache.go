@@ -21,7 +21,7 @@ type HealthCacheManager struct {
 // NewHealthCacheManager 创建新的健康状态缓存管理器
 func NewHealthCacheManager(expireTime time.Duration) *HealthCacheManager {
 	if expireTime <= 0 {
-		expireTime = 5 * time.Minute // 默认5分钟过期
+		expireTime = 1 * time.Hour // 默认1小时过期
 	}
 
 	return &HealthCacheManager{
@@ -156,7 +156,7 @@ var healthCacheOnce sync.Once
 // GetHealthCacheManager 获取全局健康状态缓存管理器实例
 func GetHealthCacheManager() *HealthCacheManager {
 	healthCacheOnce.Do(func() {
-		globalHealthCacheManager = NewHealthCacheManager(5 * time.Minute)
+		globalHealthCacheManager = NewHealthCacheManager(1 * time.Hour) // 确保这里也使用1小时
 	})
 	return globalHealthCacheManager
 }
