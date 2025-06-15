@@ -14,6 +14,7 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '@/contexts/AuthContext';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -25,6 +26,7 @@ export function ServicesPage() {
     const { t } = useTranslation();
     const { toast } = useToast();
     const navigate = useNavigate();
+    const { currentUser } = useAuth();
     const { installedServices: globalInstalledServices, fetchInstalledServices, uninstallService, toggleService, checkServiceHealth } = useMarketStore();
     const [configModalOpen, setConfigModalOpen] = useState(false);
     const [customServiceModalOpen, setCustomServiceModalOpen] = useState(false);
@@ -36,6 +38,9 @@ export function ServicesPage() {
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
     const hasFetched = useRef(false);
+
+    // 检查用户是否是管理员(role >= 10)
+    const isAdmin = currentUser?.role && currentUser.role >= 10;
 
     useEffect(() => {
         if (!hasFetched.current) {
@@ -297,13 +302,15 @@ export function ServicesPage() {
                                     >
                                         {t('services.configure')}
                                     </Button>
-                                    <button
-                                        className="p-1 rounded hover:bg-red-100 text-red-500"
-                                        onClick={() => handleUninstallClick(service.id)}
-                                        title={t('services.uninstallService')}
-                                    >
-                                        <Trash2 size={16} />
-                                    </button>
+                                    {isAdmin && (
+                                        <button
+                                            className="p-1 rounded hover:bg-red-100 text-red-500"
+                                            onClick={() => handleUninstallClick(service.id)}
+                                            title={t('services.uninstallService')}
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    )}
                                 </div>
                             </TableCell>
                         </TableRow>
@@ -349,13 +356,15 @@ export function ServicesPage() {
                                 <CardTitle className="text-lg">{service.display_name || service.name}</CardTitle>
                             </div>
                         </div>
-                        <button
-                            className="ml-2 p-1 rounded hover:bg-red-100 text-red-500"
-                            onClick={() => handleUninstallClick(service.id)}
-                            title={t('services.uninstallService')}
-                        >
-                            <Trash2 size={18} />
-                        </button>
+                        {isAdmin && (
+                            <button
+                                className="ml-2 p-1 rounded hover:bg-red-100 text-red-500"
+                                onClick={() => handleUninstallClick(service.id)}
+                                title={t('services.uninstallService')}
+                            >
+                                <Trash2 size={18} />
+                            </button>
+                        )}
                     </div>
                 </CardHeader>
                 <CardContent className="flex-grow">
@@ -430,25 +439,27 @@ export function ServicesPage() {
                         </Button>
                     </div>
 
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button className="rounded-full bg-[#7c3aed] hover:bg-[#7c3aed]/90">
-                                <PlusCircle className="w-4 h-4 mr-2" /> {t('services.addService')}
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => navigate('/market')}>
-                                <Search className="w-4 h-4 mr-2" /> {t('services.installFromMarket')}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => {
-                                setTimeout(() => {
-                                    setCustomServiceModalOpen(true);
-                                }, 50);
-                            }}>
-                                <Plus className="w-4 h-4 mr-2" /> {t('services.customInstall')}
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                    {isAdmin && (
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button className="rounded-full bg-[#7c3aed] hover:bg-[#7c3aed]/90">
+                                    <PlusCircle className="w-4 h-4 mr-2" /> {t('services.addService')}
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => navigate('/market')}>
+                                    <Search className="w-4 h-4 mr-2" /> {t('services.installFromMarket')}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => {
+                                    setTimeout(() => {
+                                        setCustomServiceModalOpen(true);
+                                    }, 50);
+                                }}>
+                                    <Plus className="w-4 h-4 mr-2" /> {t('services.customInstall')}
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    )}
                 </div>
             </div>
 

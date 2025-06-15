@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"one-mcp/backend/common"
 	"one-mcp/backend/common/i18n"
 	"one-mcp/backend/library/market"
@@ -20,6 +21,51 @@ import (
 	"github.com/burugo/thing"
 	"github.com/gin-gonic/gin"
 )
+
+// sanitizeURLForDisplay removes sensitive query parameters and fragments from URL
+// keeping only scheme, host, port and path for display purposes
+func sanitizeURLForDisplay(rawURL string) string {
+	if rawURL == "" {
+		return ""
+	}
+
+	parsedURL, err := url.Parse(rawURL)
+	if err != nil {
+		// If URL parsing fails, return the original URL
+		return rawURL
+	}
+
+	// Reconstruct URL without query parameters and fragment
+	sanitized := &url.URL{
+		Scheme: parsedURL.Scheme,
+		Host:   parsedURL.Host,
+		Path:   parsedURL.Path,
+	}
+
+	return sanitized.String()
+}
+
+// sanitizeServiceName ensures the service name is URL-friendly and consistent.
+// It trims spaces, replaces whitespace with dashes, collapses multiple dashes,
+// converts to lower-case (affecting ASCII letters only) and removes leading/trailing dashes.
+// Chinese and other Unicode letters are preserved untouched.
+func sanitizeServiceName(raw string) string {
+	if raw == "" {
+		return ""
+	}
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return ""
+	}
+	replacer := strings.NewReplacer(" ", "-", "\t", "-", "\n", "-", "\r", "-")
+	name := replacer.Replace(raw)
+	for strings.Contains(name, "--") {
+		name = strings.ReplaceAll(name, "--", "-")
+	}
+	name = strings.Trim(name, "-")
+	name = strings.ToLower(name)
+	return name
+}
 
 // GetPackageDetails godoc
 // @Summary 获取包详情
@@ -1297,6 +1343,20 @@ func CreateCustomService(c *gin.Context) {
 		return
 	}
 
+	// 清理和验证服务名称
+	sanitizedName := sanitizeServiceName(requestBody.Name)
+	if sanitizedName == "" {
+		common.RespErrorStr(c, http.StatusBadRequest, i18n.Translate("service_name_cannot_be_empty", lang))
+		return
+	}
+
+	// 检查服务名称唯一性
+	existingService, err := model.GetServiceByName(sanitizedName)
+	if err == nil && existingService != nil {
+		common.RespErrorStr(c, http.StatusConflict, i18n.Translate("service_name_already_exists", lang, sanitizedName))
+		return
+	}
+
 	// 验证服务类型
 	var serviceType model.ServiceType
 	switch requestBody.Type {
@@ -1329,14 +1389,15 @@ func CreateCustomService(c *gin.Context) {
 		}
 		description = fmt.Sprintf("%s/%s (%s)", cmdDisplay, argsDisplay, serviceTypeForDisplay)
 	case "sse", "streamableHttp":
-		urlDisplay := requestBody.URL
-		if len(urlDisplay) > 80 {
-			urlDisplay = urlDisplay[:77] + "..."
-		}
-		if urlDisplay == "" {
-			description = fmt.Sprintf("URL not set (%s)", serviceTypeForDisplay)
+		if requestBody.URL == "" {
+			description = fmt.Sprintf("Custom proxy service - URL not set (%s)", serviceTypeForDisplay)
 		} else {
-			description = fmt.Sprintf("%s (%s)", urlDisplay, serviceTypeForDisplay)
+			// Use sanitized URL to remove sensitive query parameters
+			cleanURL := sanitizeURLForDisplay(requestBody.URL)
+			if len(cleanURL) > 80 {
+				cleanURL = cleanURL[:77] + "..."
+			}
+			description = fmt.Sprintf("Custom proxy service to %s (%s)", cleanURL, serviceTypeForDisplay)
 		}
 	default:
 		// This case should ideally not be reached due to prior validation of requestBody.Type
@@ -1345,9 +1406,9 @@ func CreateCustomService(c *gin.Context) {
 
 	// 创建新服务
 	newService := model.MCPService{
-		Name:                  requestBody.Name,
-		DisplayName:           requestBody.Name,
-		Description:           description, // 使用新的动态描述
+		Name:                  sanitizedName,    // 使用清理后的名称作为系统标识符
+		DisplayName:           requestBody.Name, // 保留原始名称作为显示名称
+		Description:           description,      // 使用新的动态描述
 		Category:              model.CategoryUtil,
 		Type:                  serviceType, // Use the model.ServiceType constant
 		ClientConfigTemplates: "{}",

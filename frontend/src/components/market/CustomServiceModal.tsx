@@ -120,9 +120,20 @@ const CustomServiceModal: React.FC<CustomServiceModalProps> = ({ open, onClose, 
             });
             onClose();
         } catch (error: any) {
+            // Extract the actual error message from the API response
+            let errorMessage = t('customServiceModal.messages.unknownError');
+
+            if (error.response?.data?.message) {
+                // Backend returned a specific error message
+                errorMessage = error.response.data.message;
+            } else if (error.message) {
+                // Fallback to the general error message
+                errorMessage = error.message;
+            }
+
             toast({
                 title: t('customServiceModal.messages.createFailed'),
-                description: error.message || t('customServiceModal.messages.unknownError'),
+                description: errorMessage,
                 variant: 'destructive'
             });
             setSubmissionStatus('error');
