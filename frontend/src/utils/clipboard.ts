@@ -20,7 +20,6 @@ export async function copyToClipboard(text: string): Promise<CopyResult> {
             await navigator.clipboard.writeText(text);
             return { success: true, method: 'modern' };
         } catch (error) {
-            console.warn('Modern clipboard API failed:', error);
             return fallbackCopyToClipboard(text);
         }
     }
@@ -70,45 +69,58 @@ function fallbackCopyToClipboard(text: string): Promise<CopyResult> {
                 selection.removeAllRanges();
             }
 
-            console.log('[Clipboard] Fallback: Active element before focus/select:', document.activeElement?.outerHTML.substring(0, 100));
-            console.log('[Clipboard] Fallback: Current selection before focus/select:', selection?.toString());
-
             try {
                 textArea.focus({ preventScroll: true });
                 textArea.select();
 
-                console.log('[Clipboard] Fallback: Active element after focus/select:', document.activeElement?.outerHTML.substring(0, 100));
-                const currentSelectionText = window.getSelection()?.toString();
-                console.log('[Clipboard] Fallback: Current selection after focus/select:', currentSelectionText);
-                console.log('[Clipboard] Fallback: TextArea value to copy:', textArea.value);
+                // 使用现代方法尝试复制，如果失败则使用传统方法
+                if (navigator.clipboard && window.isSecureContext) {
+                    navigator.clipboard.writeText(text).then(() => {
+                        textArea.remove();
+                        resolve({ success: true, method: 'legacy' });
+                    }).catch(() => {
+                        // 如果现代方法也失败，尝试传统方法
+                        try {
+                            successful = document.execCommand('copy');
+                        } catch (e) {
+                            execError = e;
+                        }
+                        textArea.remove();
 
-                if (document.activeElement !== textArea || currentSelectionText !== text) {
-                    console.warn(
-                        `[Clipboard] Fallback: Failed to properly focus/select the temporary textarea. ` +
-                        `Expected to copy: "${text.substring(0, 50)}...", ` +
-                        `Actual selection: "${(currentSelectionText || '').substring(0, 50)}...", ` +
-                        `Active element is textarea: ${document.activeElement === textArea}`
-                    );
-                }
+                        if (successful) {
+                            resolve({ success: true, method: 'legacy' });
+                        } else {
+                            resolve({
+                                success: false,
+                                error: execError ? 'clipboard_not_supported' : 'execCommand_failed',
+                                method: 'manual'
+                            });
+                        }
+                    });
+                } else {
+                    // 直接使用传统方法
+                    try {
+                        successful = document.execCommand('copy');
+                    } catch (e) {
+                        execError = e;
+                    }
+                    textArea.remove();
 
-                successful = document.execCommand('copy');
-
-                if (!successful) {
-                    console.warn('[Clipboard] Fallback: document.execCommand(\'copy\') returned false.');
+                    if (successful) {
+                        resolve({ success: true, method: 'legacy' });
+                    } else {
+                        resolve({
+                            success: false,
+                            error: execError ? 'clipboard_not_supported' : 'execCommand_failed',
+                            method: 'manual'
+                        });
+                    }
                 }
             } catch (error) {
-                console.error('[Clipboard] Fallback: Error during execCommand:', error);
-                execError = error;
-            } finally {
                 textArea.remove();
-            }
-
-            if (successful) {
-                resolve({ success: true, method: 'legacy' });
-            } else {
                 resolve({
                     success: false,
-                    error: execError ? 'clipboard_not_supported' : 'execCommand_failed',
+                    error: 'clipboard_not_supported',
                     method: 'manual'
                 });
             }
@@ -121,8 +133,17 @@ function fallbackCopyToClipboard(text: string): Promise<CopyResult> {
  * @returns boolean 是否支持剪贴板操作
  */
 export function isClipboardSupported(): boolean {
-    return !!(navigator.clipboard && window.isSecureContext) ||
-        document.queryCommandSupported?.('copy') === true;
+    // 优先检查现代 clipboard API
+    if (navigator.clipboard && window.isSecureContext) {
+        return true;
+    }
+
+    // 检查是否支持 execCommand (虽然已过期，但仍可作为降级方案)
+    try {
+        return typeof document.execCommand === 'function';
+    } catch {
+        return false;
+    }
 }
 
 /**
