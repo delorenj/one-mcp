@@ -613,6 +613,7 @@ export const useMarketStore = create<MarketState>((set, get) => ({
                 title: "Uninstall Error",
                 description: errorMsg
             });
+            throw error;
         }
     },
 
