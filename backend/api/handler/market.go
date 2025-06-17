@@ -57,7 +57,7 @@ func sanitizeServiceName(raw string) string {
 	if raw == "" {
 		return ""
 	}
-	replacer := strings.NewReplacer(" ", "-", "\t", "-", "\n", "-", "\r", "-")
+	replacer := strings.NewReplacer(" ", "-", "\t", "-", "\n", "-", "\r", "-", "/", "-")
 	name := replacer.Replace(raw)
 	for strings.Contains(name, "--") {
 		name = strings.ReplaceAll(name, "--", "-")
@@ -539,7 +539,7 @@ func InstallOrAddService(c *gin.Context) {
 		}
 
 		newService := model.MCPService{
-			Name:                  requestBody.PackageName,
+			Name:                  sanitizeServiceName(requestBody.PackageName),
 			DisplayName:           displayName,
 			Description:           requestBody.ServiceDescription,
 			Category:              requestBody.Category,
@@ -554,6 +554,13 @@ func InstallOrAddService(c *gin.Context) {
 		}
 		if newService.Category == "" {
 			newService.Category = model.CategoryAI
+		}
+
+		// 检查处理后的服务名称是否已存在
+		existingServiceByName, errByName := model.GetServiceByName(newService.Name)
+		if errByName == nil && existingServiceByName != nil {
+			common.RespErrorStr(c, http.StatusConflict, i18n.Translate("service_name_already_exists", lang, newService.Name))
+			return
 		}
 
 		// 根据包管理器设置Command和ArgsJSON配置
