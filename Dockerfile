@@ -59,7 +59,7 @@ RUN if [ "$TARGETARCH" = "arm64" ]; then \
         go build -ldflags "-s -w -X 'one-mcp/common.Version=$(cat VERSION)' -extldflags '-static'" -o one-mcp; \
     fi
 
-FROM alpine
+FROM ghcr.io/astral-sh/uv:alpine
 
 RUN apk update \
     && apk upgrade \
