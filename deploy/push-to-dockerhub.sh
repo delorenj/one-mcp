@@ -29,8 +29,8 @@ if ! docker system info | grep -q "Username:"; then
 fi
 
 # 清理可能的缓存问题
-echo "Cleaning up Docker buildx cache..."
-docker buildx prune -f || true
+# echo "Cleaning up Docker buildx cache..."
+# docker buildx prune -f || true
 
 # 创建并使用多架构构建器（如果不存在）
 if ! docker buildx ls | grep -q multiarch; then

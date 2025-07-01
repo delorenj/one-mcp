@@ -9,8 +9,8 @@ import (
 
 func SetRouter(route *gin.Engine, buildFS embed.FS, indexPage []byte) {
 	// Apply gzip middleware to the entire application
-	route.Use(middleware.GzipDecodeMiddleware()) // Decode gzipped requests
-	route.Use(middleware.GzipEncodeMiddleware()) // Compress responses with gzip
+	// route.Use(middleware.GzipDecodeMiddleware()) // Decode gzipped requests
+	// route.Use(middleware.GzipEncodeMiddleware()) // Compress responses with gzip
 
 	// Apply CORS middleware globally
 	route.Use(middleware.CORS())
