@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"one-mcp/backend/common"
+	"one-mcp/backend/library/proxy"
 	"one-mcp/backend/model"
 	"one-mcp/backend/service"
 
@@ -39,6 +40,8 @@ func UpdateOption(c *gin.Context) {
 		return
 	}
 	switch option.Key {
+	case "ServerAddress":
+		proxy.ClearSSEProxyCache()
 	case "GitHubOAuthEnabled":
 		if option.Value == "true" && common.GetGitHubClientId() == "" {
 			c.JSON(http.StatusOK, gin.H{

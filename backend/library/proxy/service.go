@@ -1064,3 +1064,14 @@ func GetOrCreateProxyToHTTPHandler(ctx context.Context, mcpDBService *model.MCPS
 
 	return handler, nil
 }
+
+// ClearSSEProxyCache clears the cached SSE proxy handlers.
+// This should be called when global settings that affect handler creation (like ServerAddress) are changed.
+func ClearSSEProxyCache() {
+	sseWrappersMutex.Lock()
+	defer sseWrappersMutex.Unlock()
+	if len(initializedSSEProxyWrappers) > 0 {
+		common.SysLog(fmt.Sprintf("Clearing %d cached SSE proxy handlers due to configuration change.", len(initializedSSEProxyWrappers)))
+		initializedSSEProxyWrappers = make(map[string]http.Handler)
+	}
+}
