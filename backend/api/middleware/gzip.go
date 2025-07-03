@@ -64,6 +64,11 @@ func (w *lazyGzipWriter) WriteHeader(statusCode int) {
 	if w.enableCompression {
 		w.Header().Set("Content-Encoding", "gzip")
 		w.Header().Set("Vary", "Accept-Encoding")
+		// Deleting the Content-Length header is crucial for dynamically compressed responses,
+		// as the original length set by upstream handlers becomes invalid.
+		// This allows the transport to use chunked encoding (HTTP/1.1) or data framing (HTTP/2).
+		w.Header().Del("Content-Length")
+
 		// Initialize gzip.Writer only if compression is enabled
 		if w.gzWriter == nil {
 			// It's possible NewWriterLevel could fail, but it's rare with valid levels.
@@ -85,22 +90,8 @@ func (w *lazyGzipWriter) Write(data []byte) (int, error) {
 		return w.ResponseWriter.Write(data)
 	}
 
-	// Ensure gzWriter is initialized (it should be if enableCompression is true and WriteHeader was called)
-	if w.gzWriter == nil {
-		// This case implies WriteHeader wasn't called with a status that would initialize gzWriter
-		// OR tryInitCompression decided to enable but gzWriter init failed/skipped.
-		// Fallback to uncompressed to be safe, or handle error appropriately.
-		// For this refactor, we assume WriteHeader path correctly initializes if enableCompression is true.
-		// If gzWriter is still nil here and enableCompression is true, it's an issue.
-		// However, the current WriteHeader logic should initialize it.
-		// If we hit this, it's a bug or unhandled edge case in initialization logic.
-		// Let's proceed as if it's initialized if enableCompression is true.
-		// A more robust solution would re-check and initialize here if necessary.
-		// For now, relying on WriteHeader's init.
-		if w.gzWriter == nil { // Double check, this should ideally not be needed
-			return w.ResponseWriter.Write(data) // Fallback if something went wrong
-		}
-	}
+	// At this point, if enableCompression is true, WriteHeader must have been called,
+	// and gzWriter must have been initialized. We can safely write to it.
 	return w.gzWriter.Write(data)
 }
 
@@ -135,12 +126,9 @@ func GzipEncodeMiddleware() gin.HandlerFunc {
 
 		defer func() {
 			// It's crucial to Close the writer to flush any buffered data for GZIP.
-			// Also, ensure headers set by writer are actually sent if Write/WriteHeader wasn't called.
-			// Gin typically handles WriteHeader implicitly if not called.
-			// The Close here is primarily for the gzip.Writer.
-			if lgw.gzWriter != nil { // Only close if it was initialized
-				lgw.Close()
-			}
+			// lgw.Close() handles the case where gzWriter was not initialized.
+			lgw.Close()
+			c.Writer = lgw.ResponseWriter
 		}()
 
 		c.Next()
