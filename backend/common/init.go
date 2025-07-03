@@ -14,6 +14,7 @@ var (
 	PrintVersion  = flag.Bool("version", false, "print version and exit")
 	PrintHelpFlag = flag.Bool("help", false, "print help and exit")
 	LogDir        = flag.String("log-dir", "", "specify the log directory")
+	EnableGzip    = flag.Bool("gzip", true, "enable gzip compression")
 )
 
 // UploadPath Maybe override by ENV_VAR
@@ -58,6 +59,14 @@ func init() {
 			log.Fatal(err)
 		}
 		Port = &portInt
+	}
+
+	if os.Getenv("ENABLE_GZIP") != "" {
+		enableGzipBool, err := strconv.ParseBool(os.Getenv("ENABLE_GZIP"))
+		if err != nil {
+			log.Fatalf("invalid value for ENABLE_GZIP: %v", err)
+		}
+		*EnableGzip = enableGzipBool
 	}
 
 	if *LogDir != "" {

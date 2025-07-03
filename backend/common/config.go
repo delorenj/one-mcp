@@ -109,3 +109,10 @@ func GetSMTPAccount() string {
 func GetSMTPToken() string {
 	return OptionMap["SMTPToken"]
 }
+
+// GetEnableGzip checks if gzip compression should be enabled.
+// Defaults to true if the option is not explicitly set to "false".
+func GetEnableGzip() bool {
+	// We treat any value other than "false" as true for safety.
+	return OptionMap["EnableGzip"] != "false"
+}
