@@ -69,7 +69,7 @@ const AppLayout = () => {
       <header className="border-b border-border bg-background sticky top-0 z-10">
         <div className="container mx-auto flex items-center h-16 px-6">
           <Link to="/" className="flex items-center gap-2">
-            <img src="/logo.png" alt="One MCP Logo" className="h-6 w-6" />
+            <Globe className="h-6 w-6 text-primary" />
             <h1 className="text-xl font-semibold">One MCP</h1>
           </Link>
           <div className="flex items-center ml-auto gap-6">
