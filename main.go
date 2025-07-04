@@ -5,10 +5,12 @@ import (
 	"embed"
 	"flag"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"strconv"
 	"syscall"
+	"time"
 
 	"one-mcp/backend/api/middleware"
 	"one-mcp/backend/api/route"
@@ -90,26 +92,35 @@ func main() {
 	}()
 
 	// Initialize HTTP server
-	server := gin.Default()
-	//server.Use(gzip.Gzip(gzip.DefaultCompression))
-	server.Use(middleware.CORS())
+	engine := gin.Default()
+	//engine.Use(gzip.Gzip(gzip.DefaultCompression))
+	engine.Use(middleware.CORS())
 
-	route.SetRouter(server, buildFS, indexPage)
+	route.SetRouter(engine, buildFS, indexPage)
 
 	port := strconv.Itoa(*common.Port)
 	common.SysLog("Server listening on port: " + port)
 
-	// Setup graceful shutdown
-	setupGracefulShutdown()
+	// Create custom http.Server with no IdleTimeout (0) to support long-lived connections
+	srv := &http.Server{
+		Addr:         ":" + port,
+		Handler:      engine,
+		ReadTimeout:  60 * time.Second,
+		WriteTimeout: 60 * time.Second,
+		IdleTimeout:  0,
+	}
 
-	err = server.Run(":" + port)
-	if err != nil {
+	// Setup graceful shutdown
+	setupGracefulShutdown(srv)
+
+	// Start HTTP server
+	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatal("failed to start server: " + err.Error())
 	}
 }
 
 // setupGracefulShutdown registers signal handlers to ensure clean shutdown
-func setupGracefulShutdown() {
+func setupGracefulShutdown(srv *http.Server) {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 
@@ -123,6 +134,11 @@ func setupGracefulShutdown() {
 			common.SysLog("Error shutting down service manager: " + err.Error())
 		} else {
 			common.SysLog("Service manager shut down successfully")
+		}
+
+		// Gracefully shut down HTTP server
+		if err := srv.Shutdown(context.Background()); err != nil {
+			common.SysLog("HTTP server Shutdown: " + err.Error())
 		}
 
 		// 关闭其他资源...
