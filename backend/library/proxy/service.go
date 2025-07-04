@@ -787,8 +787,11 @@ func createHTTPProxyHttpHandler(mcpGoServer *mcpserver.MCPServer, mcpDBService *
 		return nil, errors.New("mcpGoServer cannot be nil for createHTTPProxyHttpHandler")
 	}
 
-	// Use NewStreamableHTTPServer to create HTTP/MCP handler
-	actualMCPGoHTTPServer := mcpserver.NewStreamableHTTPServer(mcpGoServer)
+	// Use NewStreamableHTTPServer to create HTTP/MCP handler with heartbeat to prevent idle timeout
+	actualMCPGoHTTPServer := mcpserver.NewStreamableHTTPServer(mcpGoServer,
+		mcpserver.WithHeartbeatInterval(30*time.Second),
+	)
+
 	common.SysLog(fmt.Sprintf("Successfully created HTTP/MCP handler for %s (ID: %d)", mcpDBService.Name, mcpDBService.ID))
 	return actualMCPGoHTTPServer, nil
 }
