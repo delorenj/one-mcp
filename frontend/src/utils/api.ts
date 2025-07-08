@@ -1,4 +1,4 @@
-import axios, { AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, { InternalAxiosRequestConfig, AxiosResponse } from 'axios';
 import i18n from '../i18n';
 
 // API响应类型
@@ -47,11 +47,11 @@ export const toastEmitter = ToastEmitter.getInstance();
 // Define the custom API client interface
 // This describes the specific methods whose return types are altered by our interceptors.
 interface AppAPIClient {
-    get<T = any>(url: string, config?: AxiosRequestConfig): Promise<APIResponse<T>>;
-    post<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<APIResponse<T>>;
-    put<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<APIResponse<T>>;
-    delete<T = any>(url: string, config?: AxiosRequestConfig): Promise<APIResponse<T>>;
-    patch<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<APIResponse<T>>;
+    get<T = any>(url: string, config?: InternalAxiosRequestConfig): Promise<APIResponse<T>>;
+    post<T = any>(url: string, data?: any, config?: InternalAxiosRequestConfig): Promise<APIResponse<T>>;
+    put<T = any>(url: string, data?: any, config?: InternalAxiosRequestConfig): Promise<APIResponse<T>>;
+    delete<T = any>(url: string, config?: InternalAxiosRequestConfig): Promise<APIResponse<T>>;
+    patch<T = any>(url: string, data?: any, config?: InternalAxiosRequestConfig): Promise<APIResponse<T>>;
     // Add other HTTP methods (patch, head, options) here if they are used 
     // and their responses are also transformed into APIResponse<T> by interceptors.
 }
@@ -67,15 +67,21 @@ const apiInstance = axios.create({
 
 // 请求拦截器
 apiInstance.interceptors.request.use(
-    (config) => {
+    (config: InternalAxiosRequestConfig) => {
         // 从localStorage获取token
         const token = localStorage.getItem('token');
         if (token) {
+            if (!config.headers) {
+                config.headers = {} as any;
+            }
             config.headers['Authorization'] = `Bearer ${token}`;
         }
 
         // 添加 Accept-Language 请求头
         if (i18n.language) {
+            if (!config.headers) {
+                config.headers = {} as any;
+            }
             config.headers['Accept-Language'] = i18n.language;
         }
 
