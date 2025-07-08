@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 
 	"one-mcp/backend/api/middleware"
@@ -26,7 +27,12 @@ var buildFS embed.FS
 //go:embed frontend/dist/index.html
 var indexPage []byte
 
+//go:embed VERSION
+var versionFileContent string
+
 func main() {
+	// Set version from embedded file at the very beginning
+	common.Version = strings.TrimSpace(versionFileContent)
 	flag.Parse()
 	if *common.PrintVersion {
 		println(common.Version)
