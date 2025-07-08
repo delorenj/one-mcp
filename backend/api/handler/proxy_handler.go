@@ -281,18 +281,27 @@ func ProxyHandler(c *gin.Context) {
 		if requestMethod == http.MethodPost {
 			if action == "/message" || action == "/mcp" {
 				if c.Request.Body != nil {
+					// Read the entire request body to inspect it.
 					bodyBytes, err := io.ReadAll(c.Request.Body)
 					if err != nil {
-						c.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
-					} else {
-						c.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+						// Log the error, as it's unexpected.
+						common.SysError(fmt.Sprintf("[ProxyHandler] failed to read request body for stat check: %v", err))
+					}
 
+					// CRITICAL: Always restore the request body so that the downstream handler can read it.
+					// We use the bytes we read, even if there was an error, to preserve as much of the body as possible.
+					c.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
+					// If we successfully read the body, proceed to check if it's a "tools/call".
+					if err == nil && len(bodyBytes) > 0 {
 						var parsedBody map[string]interface{}
-						if errUnmarshal := json.Unmarshal(bodyBytes, &parsedBody); errUnmarshal != nil {
-						} else {
+						// We don't care about unmarshalling errors, as the body might not be JSON.
+						// The downstream handler is responsible for proper body parsing and error handling.
+						if json.Unmarshal(bodyBytes, &parsedBody) == nil {
 							if actualMethod, ok := parsedBody["method"].(string); ok && actualMethod == "tools/call" {
 								shouldRecordStat = true
 								methodForStat = "tools/call"
+								// requestBodyForStat = string(bodyBytes)
 								if action == "/message" {
 									requestTypeForStat = "sse"
 								} else { // action == "/mcp"
@@ -301,11 +310,8 @@ func ProxyHandler(c *gin.Context) {
 							}
 						}
 					}
-				} else { // c.Request.Body == nil
 				}
-			} else {
 			}
-		} else {
 		}
 
 		if shouldRecordStat {
