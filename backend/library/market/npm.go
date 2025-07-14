@@ -669,15 +669,242 @@ func GetEnvVarsFromMCPConfig(config *MCPConfig) []string {
 
 	// 遍历所有服务器配置
 	for _, serverConfig := range config.MCPServers {
-		// 提取环境变量
+		// 1. 首先提取 env 字段中的环境变量（包括占位符形式）
 		for envVar := range serverConfig.Env {
 			envVars[envVar] = true
+		}
+
+		// 2. 如果 env 字段为空，尝试从 command 字段中提取
+		if len(serverConfig.Env) == 0 {
+			// 2.1 从 URL 参数中提取 API Key
+			if strings.Contains(serverConfig.Command, "ApiKey=") || strings.Contains(serverConfig.Command, "apiKey=") {
+				// 查找形如 someApiKey= 的模式
+				re := regexp.MustCompile(`(\w+[Aa]pi[Kk]ey)=`)
+				matches := re.FindAllStringSubmatch(serverConfig.Command, -1)
+				for _, match := range matches {
+					if len(match) > 1 {
+						apiKeyParam := match[1]
+						// 将camelCase转换为UPPER_SNAKE_CASE
+						envVar := convertCamelToSnake(apiKeyParam)
+						if isEnvVarName(envVar) {
+							envVars[envVar] = true
+						}
+					}
+				}
+			}
+
+			// 2.2 从 command + args 组合中推断包名和环境变量
+			if serverConfig.Command == "npx" && len(serverConfig.Args) > 0 {
+				// 查找形如 "-y", "package-name" 的模式
+				var packageName string
+				for i, arg := range serverConfig.Args {
+					if arg == "-y" && i+1 < len(serverConfig.Args) {
+						packageName = serverConfig.Args[i+1]
+						break
+					}
+				}
+
+				if packageName == "" && len(serverConfig.Args) > 0 {
+					// 如果没有 -y 标志，取最后一个参数作为包名
+					packageName = serverConfig.Args[len(serverConfig.Args)-1]
+				}
+
+				// 清理包名（移除版本号）
+				if strings.Contains(packageName, "@") {
+					parts := strings.Split(packageName, "@")
+					if len(parts) > 0 {
+						packageName = parts[0]
+					}
+				}
+
+				// 根据包名推断环境变量
+				if packageName != "" {
+					inferredVars := inferEnvVarsFromPackageName(packageName)
+					for _, envVar := range inferredVars {
+						envVars[envVar] = true
+					}
+				}
+			}
+
+			// 2.3 从 command 字段中包含的包名推断（当整个命令在一个字段中时）
+			if strings.Contains(serverConfig.Command, "npx") {
+				// 从命令中提取包名
+				commandParts := strings.Fields(serverConfig.Command)
+				for i, part := range commandParts {
+					if part == "npx" && i+1 < len(commandParts) {
+						// 跳过 -y 标志
+						nextIdx := i + 1
+						if nextIdx < len(commandParts) && commandParts[nextIdx] == "-y" {
+							nextIdx++
+						}
+						if nextIdx < len(commandParts) {
+							packageName := commandParts[nextIdx]
+							// 清理包名（移除版本号和URL）
+							if strings.Contains(packageName, "@") {
+								parts := strings.Split(packageName, "@")
+								if len(parts) > 0 {
+									packageName = parts[0]
+								}
+							}
+							// 如果是URL，跳过
+							if !strings.Contains(packageName, "http") && packageName != "" {
+								inferredVars := inferEnvVarsFromPackageName(packageName)
+								for _, envVar := range inferredVars {
+									envVars[envVar] = true
+								}
+							}
+						}
+						break
+					}
+				}
+			}
 		}
 	}
 
 	// 转换为字符串切片
 	result := make([]string, 0, len(envVars))
 	for envVar := range envVars {
+		result = append(result, envVar)
+	}
+
+	return result
+}
+
+// convertCamelToSnake 将camelCase转换为UPPER_SNAKE_CASE
+// 例如: tavilyApiKey -> TAVILY_API_KEY
+func convertCamelToSnake(camelCase string) string {
+	var result strings.Builder
+	for i, c := range camelCase {
+		if c >= 'A' && c <= 'Z' && i > 0 {
+			result.WriteRune('_')
+		}
+		result.WriteRune(c)
+	}
+	return strings.ToUpper(result.String())
+}
+
+// inferEnvVarsFromPackageName 根据包名推断可能的环境变量
+func inferEnvVarsFromPackageName(packageName string) []string {
+	var envVars []string
+
+	// 常见的包名到环境变量的映射
+	packageToEnvMap := map[string][]string{
+		"tavily-mcp":          {"TAVILY_API_KEY"},
+		"firecrawl-mcp":       {"FIRECRAWL_API_KEY"},
+		"openai-mcp":          {"OPENAI_API_KEY"},
+		"anthropic-mcp":       {"ANTHROPIC_API_KEY"},
+		"slack-mcp":           {"SLACK_TOKEN", "SLACK_BOT_TOKEN"},
+		"github-mcp":          {"GITHUB_TOKEN", "GITHUB_ACCESS_TOKEN"},
+		"gitlab-mcp":          {"GITLAB_TOKEN", "GITLAB_ACCESS_TOKEN"},
+		"notion-mcp":          {"NOTION_API_KEY", "NOTION_TOKEN"},
+		"airtable-mcp":        {"AIRTABLE_API_KEY"},
+		"google-drive-mcp":    {"GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"},
+		"google-calendar-mcp": {"GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET"},
+		"trello-mcp":          {"TRELLO_API_KEY", "TRELLO_TOKEN"},
+		"linear-mcp":          {"LINEAR_API_KEY"},
+		"asana-mcp":           {"ASANA_ACCESS_TOKEN"},
+		"jira-mcp":            {"JIRA_API_TOKEN", "JIRA_EMAIL"},
+		"confluence-mcp":      {"CONFLUENCE_API_TOKEN"},
+		"zendesk-mcp":         {"ZENDESK_API_TOKEN"},
+		"hubspot-mcp":         {"HUBSPOT_API_KEY"},
+		"salesforce-mcp":      {"SALESFORCE_ACCESS_TOKEN"},
+		"stripe-mcp":          {"STRIPE_API_KEY"},
+		"paypal-mcp":          {"PAYPAL_CLIENT_ID", "PAYPAL_CLIENT_SECRET"},
+		"aws-mcp":             {"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"},
+		"gcp-mcp":             {"GOOGLE_APPLICATION_CREDENTIALS"},
+		"azure-mcp":           {"AZURE_CLIENT_ID", "AZURE_CLIENT_SECRET"},
+		"discord-mcp":         {"DISCORD_TOKEN"},
+		"telegram-mcp":        {"TELEGRAM_BOT_TOKEN"},
+		"whatsapp-mcp":        {"WHATSAPP_API_KEY"},
+		"twitter-mcp":         {"TWITTER_API_KEY", "TWITTER_API_SECRET"},
+		"facebook-mcp":        {"FACEBOOK_ACCESS_TOKEN"},
+		"instagram-mcp":       {"INSTAGRAM_ACCESS_TOKEN"},
+		"youtube-mcp":         {"YOUTUBE_API_KEY"},
+		"twitch-mcp":          {"TWITCH_CLIENT_ID", "TWITCH_CLIENT_SECRET"},
+		"spotify-mcp":         {"SPOTIFY_CLIENT_ID", "SPOTIFY_CLIENT_SECRET"},
+		"reddit-mcp":          {"REDDIT_CLIENT_ID", "REDDIT_CLIENT_SECRET"},
+		"pinterest-mcp":       {"PINTEREST_ACCESS_TOKEN"},
+		"linkedin-mcp":        {"LINKEDIN_ACCESS_TOKEN"},
+		"shopify-mcp":         {"SHOPIFY_API_KEY", "SHOPIFY_ACCESS_TOKEN"},
+		"woocommerce-mcp":     {"WOOCOMMERCE_CONSUMER_KEY", "WOOCOMMERCE_CONSUMER_SECRET"},
+		"mailchimp-mcp":       {"MAILCHIMP_API_KEY"},
+		"sendgrid-mcp":        {"SENDGRID_API_KEY"},
+		"twilio-mcp":          {"TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN"},
+		"zoom-mcp":            {"ZOOM_API_KEY", "ZOOM_API_SECRET"},
+		"dropbox-mcp":         {"DROPBOX_ACCESS_TOKEN"},
+		"box-mcp":             {"BOX_CLIENT_ID", "BOX_CLIENT_SECRET"},
+		"onedrive-mcp":        {"ONEDRIVE_ACCESS_TOKEN"},
+		"firebase-mcp":        {"FIREBASE_API_KEY", "FIREBASE_PROJECT_ID"},
+		"supabase-mcp":        {"SUPABASE_URL", "SUPABASE_KEY"},
+		"mongodb-mcp":         {"MONGODB_URI", "MONGODB_CONNECTION_STRING"},
+		"postgresql-mcp":      {"POSTGRES_URL", "POSTGRES_CONNECTION_STRING"},
+		"mysql-mcp":           {"MYSQL_URL", "MYSQL_CONNECTION_STRING"},
+		"redis-mcp":           {"REDIS_URL", "REDIS_CONNECTION_STRING"},
+		"elasticsearch-mcp":   {"ELASTICSEARCH_URL", "ELASTICSEARCH_API_KEY"},
+		"algolia-mcp":         {"ALGOLIA_APPLICATION_ID", "ALGOLIA_API_KEY"},
+		"cloudflare-mcp":      {"CLOUDFLARE_API_TOKEN"},
+		"vercel-mcp":          {"VERCEL_TOKEN"},
+		"netlify-mcp":         {"NETLIFY_ACCESS_TOKEN"},
+		"heroku-mcp":          {"HEROKU_API_KEY"},
+		"digitalocean-mcp":    {"DIGITALOCEAN_ACCESS_TOKEN"},
+		"linode-mcp":          {"LINODE_TOKEN"},
+		"vultr-mcp":           {"VULTR_API_KEY"},
+	}
+
+	// 直接匹配
+	if vars, exists := packageToEnvMap[packageName]; exists {
+		envVars = append(envVars, vars...)
+	}
+
+	// 模式匹配：基于包名推断
+	if strings.Contains(packageName, "tavily") {
+		envVars = append(envVars, "TAVILY_API_KEY")
+	}
+	if strings.Contains(packageName, "firecrawl") {
+		envVars = append(envVars, "FIRECRAWL_API_KEY")
+	}
+	if strings.Contains(packageName, "openai") {
+		envVars = append(envVars, "OPENAI_API_KEY")
+	}
+	if strings.Contains(packageName, "anthropic") {
+		envVars = append(envVars, "ANTHROPIC_API_KEY")
+	}
+	if strings.Contains(packageName, "github") {
+		envVars = append(envVars, "GITHUB_TOKEN")
+	}
+	if strings.Contains(packageName, "gitlab") {
+		envVars = append(envVars, "GITLAB_TOKEN")
+	}
+	if strings.Contains(packageName, "notion") {
+		envVars = append(envVars, "NOTION_API_KEY")
+	}
+	if strings.Contains(packageName, "slack") {
+		envVars = append(envVars, "SLACK_TOKEN")
+	}
+	if strings.Contains(packageName, "discord") {
+		envVars = append(envVars, "DISCORD_TOKEN")
+	}
+	if strings.Contains(packageName, "telegram") {
+		envVars = append(envVars, "TELEGRAM_BOT_TOKEN")
+	}
+	if strings.Contains(packageName, "stripe") {
+		envVars = append(envVars, "STRIPE_API_KEY")
+	}
+	if strings.Contains(packageName, "aws") {
+		envVars = append(envVars, "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY")
+	}
+	if strings.Contains(packageName, "google") {
+		envVars = append(envVars, "GOOGLE_API_KEY")
+	}
+
+	// 去重
+	uniqueVars := make(map[string]bool)
+	for _, envVar := range envVars {
+		uniqueVars[envVar] = true
+	}
+
+	result := make([]string, 0, len(uniqueVars))
+	for envVar := range uniqueVars {
 		result = append(result, envVar)
 	}
 

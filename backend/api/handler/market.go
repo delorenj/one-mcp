@@ -790,8 +790,18 @@ func UninstallService(c *gin.Context) {
 	if !isPendingOrInstalling && service.Type == model.ServiceTypeStdio && service.SourcePackageName != "" {
 		log.Printf("[UninstallService] Attempting to unregister service ID %d (Name: %s) from ServiceManager", service.ID, service.Name)
 		serviceManager := proxy.GetServiceManager()
-		if err := serviceManager.UnregisterService(c.Request.Context(), service.ID); err != nil {
-			log.Printf("[UninstallService] Error unregistering service ID %d from ServiceManager: %v. Proceeding with uninstall.", service.ID, err)
+
+		// 创建一个专门的超时上下文，给予足够的时间进行清理
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		if err := serviceManager.UnregisterService(ctx, service.ID); err != nil {
+			log.Printf("[UninstallService] Error unregistering service ID %d from ServiceManager: %v.", service.ID, err)
+			// 如果是超时错误，我们跳过物理卸载，直接进行软删除
+			if errors.Is(err, context.DeadlineExceeded) {
+				log.Printf("[UninstallService] Unregistration timed out. Skipping physical uninstall.")
+				isPendingOrInstalling = true // Treat as pending to skip physical uninstall
+			}
 		} else {
 			log.Printf("[UninstallService] Successfully unregistered service ID %d from ServiceManager.", service.ID)
 		}
