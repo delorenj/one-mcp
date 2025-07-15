@@ -245,25 +245,35 @@ export function ServicesPage() {
 
                 // 从 arguments 中获取包名，如果没有 arguments 则从 command 中解析
                 if (serviceData.arguments?.trim()) {
-                    // 如果有 arguments，从中获取包名
-                    const args = serviceData.arguments.trim().split('\n')[0].trim(); // 取第一行作为包名
-                    if (command === 'npx') {
+                    // 如果有 arguments，从中获取包名，过滤掉以 '-' 开头的参数
+                    const argLines = serviceData.arguments.trim().split('\n');
+                    const packageNameFromArgs = argLines.find(line => {
+                        const trimmedLine = line.trim();
+                        return trimmedLine && !trimmedLine.startsWith('-');
+                    })?.trim() || '';
+
+                    if (packageNameFromArgs && command === 'npx') {
                         packageManager = 'npm';
-                        packageName = args;
-                    } else if (command === 'uvx') {
+                        packageName = packageNameFromArgs;
+                    } else if (packageNameFromArgs && command === 'uvx') {
                         packageManager = 'uv';
-                        packageName = args;
+                        packageName = packageNameFromArgs;
                     }
                 } else {
                     // 如果没有 arguments，尝试从 command 中解析
                     const commandParts = command?.split(' ');
                     if (commandParts && commandParts.length > 1) {
-                        if (commandParts[0] === 'npx') {
+                        // 过滤掉以 '-' 开头的参数，找到第一个包名
+                        const packageNameFromCommand = commandParts.slice(1).find(part =>
+                            part.trim() && !part.trim().startsWith('-')
+                        )?.trim() || '';
+
+                        if (packageNameFromCommand && commandParts[0] === 'npx') {
                             packageManager = 'npm';
-                            packageName = commandParts.slice(1).join(' ');
-                        } else if (commandParts[0] === 'uvx') {
+                            packageName = packageNameFromCommand;
+                        } else if (packageNameFromCommand && commandParts[0] === 'uvx') {
                             packageManager = 'uv';
-                            packageName = commandParts.slice(1).join(' ');
+                            packageName = packageNameFromCommand;
                         }
                     }
                 }
