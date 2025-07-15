@@ -453,7 +453,7 @@
             "serviceType": "Service Type",
             "serviceTypePlaceholder": "Select service type",
             "command": "Execute Command",
-            "commandPlaceholder": "npx your-mcp-server",
+            "commandPlaceholder": "npx or uvx",
             "arguments": "Command Arguments",
             "argumentsPlaceholder": "--arg1 value1\n--arg2 value2",
             "environments": "Environment Variables",
@@ -487,7 +487,21 @@
             "createSuccess": "Create Success",
             "createSuccessDescription": "Service {{serviceName}} has been successfully created",
             "createFailed": "Create Failed",
-            "unknownError": "Unknown error"
+            "unknownError": "Unknown error",
+            "commandMustStartWith": "Command must start with npx or uvx",
+            "installationSubmitted": "Installation Submitted",
+            "installationSubmittedDescription": "Installation task for service {{serviceName}} has been submitted, please wait",
+            "installationSuccess": "Installation Success",
+            "installationSuccessDescription": "Service {{serviceName}} has been successfully installed",
+            "installationFailed": "Installation Failed",
+            "installationFailedDescription": "Service {{serviceName}} installation failed: {{error}}",
+            "installationTimeout": "Installation Timeout",
+            "installationTimeoutDescription": "Service {{serviceName}} installation timed out, please check status manually",
+            "statusCheckTimeout": "Status Check Timeout",
+            "statusCheckTimeoutDescription": "Unable to get installation status for service {{serviceName}}",
+            "statusCheckFailed": "Status Check Failed",
+            "statusCheckFailedDescription": "Error occurred while checking installation status for service {{serviceName}}",
+            "parseCommandFailed": "Unable to parse package manager or package name from command. Command must be \"npx\" or \"uvx\", and package name must be specified in command arguments."
         }
     },
     "serviceConfigModal": {

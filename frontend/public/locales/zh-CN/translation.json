@@ -453,7 +453,7 @@
             "serviceType": "服务类型",
             "serviceTypePlaceholder": "选择服务类型",
             "command": "执行命令",
-            "commandPlaceholder": "npx your-mcp-server",
+            "commandPlaceholder": "npx 或 uvx",
             "arguments": "命令参数",
             "argumentsPlaceholder": "--arg1 value1\n--arg2 value2",
             "environments": "环境变量",
@@ -487,7 +487,21 @@
             "createSuccess": "创建成功",
             "createSuccessDescription": "服务 {{serviceName}} 已成功创建",
             "createFailed": "创建失败",
-            "unknownError": "未知错误"
+            "unknownError": "未知错误",
+            "commandMustStartWith": "命令必须以 npx 或 uvx 开头",
+            "installationSubmitted": "安装已提交",
+            "installationSubmittedDescription": "服务 {{serviceName}} 安装任务已提交，请稍候",
+            "installationSuccess": "安装成功",
+            "installationSuccessDescription": "服务 {{serviceName}} 已成功安装",
+            "installationFailed": "安装失败",
+            "installationFailedDescription": "服务 {{serviceName}} 安装失败: {{error}}",
+            "installationTimeout": "安装超时",
+            "installationTimeoutDescription": "服务 {{serviceName}} 安装超时，请手动检查状态",
+            "statusCheckTimeout": "状态检查超时",
+            "statusCheckTimeoutDescription": "无法获取服务 {{serviceName}} 的安装状态",
+            "statusCheckFailed": "状态检查失败",
+            "statusCheckFailedDescription": "检查服务 {{serviceName}} 安装状态时出错",
+            "parseCommandFailed": "无法从命令中解析包管理器或包名称。命令必须是 \"npx\" 或 \"uvx\"，并且需要在命令参数中指定包名。"
         }
     },
     "serviceConfigModal": {

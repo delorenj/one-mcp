@@ -42,5 +42,6 @@
   "check_service_health_failed": "Failed to check service health",
   "update_service_health_failed": "Failed to update service health status",
   "service_name_cannot_be_empty": "Service name cannot be empty or contain only whitespace characters",
-  "service_name_already_exists": "Service name '%s' already exists, please use a different name"
+  "service_name_already_exists": "Service name '%s' already exists, please use a different name",
+  "package_not_found": "Package '%s' does not exist or cannot retrieve package information"
 }

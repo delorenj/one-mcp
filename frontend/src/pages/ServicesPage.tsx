@@ -163,25 +163,113 @@ export function ServicesPage() {
         }
     };
 
+    const pollInstallationStatus = async (serviceId: string, serviceName: string) => {
+        const maxAttempts = 30; // 最多轮询30次（约5分钟）
+        let attempts = 0;
+
+        const poll = async () => {
+            try {
+                attempts++;
+                const response = await api.get(`/mcp_market/install_status/${serviceId}`) as APIResponse<any>;
+
+                if (response.success && response.data) {
+                    const status = response.data.status;
+
+                    if (status === 'completed') {
+                        toast({
+                            title: t('customServiceModal.messages.installationSuccess'),
+                            description: t('customServiceModal.messages.installationSuccessDescription', { serviceName })
+                        });
+                        fetchInstalledServices(); // 刷新列表
+                        return;
+                    } else if (status === 'failed') {
+                        toast({
+                            title: t('customServiceModal.messages.installationFailed'),
+                            description: t('customServiceModal.messages.installationFailedDescription', {
+                                serviceName,
+                                error: response.data.error || t('customServiceModal.messages.unknownError')
+                            }),
+                            variant: 'destructive'
+                        });
+                        return;
+                    } else if (status === 'installing' || status === 'pending') {
+                        // 继续轮询
+                        if (attempts < maxAttempts) {
+                            setTimeout(poll, 10000); // 10秒后再次检查
+                        } else {
+                            toast({
+                                title: t('customServiceModal.messages.installationTimeout'),
+                                description: t('customServiceModal.messages.installationTimeoutDescription', { serviceName }),
+                                variant: 'destructive'
+                            });
+                        }
+                        return;
+                    }
+                }
+
+                // 默认情况下继续轮询
+                if (attempts < maxAttempts) {
+                    setTimeout(poll, 10000);
+                } else {
+                    toast({
+                        title: t('customServiceModal.messages.statusCheckTimeout'),
+                        description: t('customServiceModal.messages.statusCheckTimeoutDescription', { serviceName }),
+                        variant: 'destructive'
+                    });
+                }
+            } catch (error: any) {
+                console.error('Poll installation status error:', error);
+                if (attempts < maxAttempts) {
+                    setTimeout(poll, 10000); // 出错时也继续尝试
+                } else {
+                    toast({
+                        title: t('customServiceModal.messages.statusCheckFailed'),
+                        description: t('customServiceModal.messages.statusCheckFailedDescription', { serviceName }),
+                        variant: 'destructive'
+                    });
+                }
+            }
+        };
+
+        // 开始轮询
+        poll();
+    };
+
     const handleCreateCustomService = async (serviceData: CustomServiceData) => {
         try {
             let res;
             if (serviceData.type === 'stdio') {
                 let packageName = '';
                 let packageManager = '';
-                const commandParts = serviceData.command?.split(' ');
-                if (commandParts && commandParts.length > 1) {
-                    if (commandParts[0] === 'npx') {
+                const command = serviceData.command?.trim();
+
+                // 从 arguments 中获取包名，如果没有 arguments 则从 command 中解析
+                if (serviceData.arguments?.trim()) {
+                    // 如果有 arguments，从中获取包名
+                    const args = serviceData.arguments.trim().split('\n')[0].trim(); // 取第一行作为包名
+                    if (command === 'npx') {
                         packageManager = 'npm';
-                        packageName = commandParts.slice(1).join(' '); // Allow package names with spaces, though uncommon
-                    } else if (commandParts[0] === 'uvx') {
-                        packageManager = 'uv'; // Or 'pypi', 'pip' based on exact backend expectation for uvx
-                        packageName = commandParts.slice(1).join(' ');
+                        packageName = args;
+                    } else if (command === 'uvx') {
+                        packageManager = 'uv';
+                        packageName = args;
+                    }
+                } else {
+                    // 如果没有 arguments，尝试从 command 中解析
+                    const commandParts = command?.split(' ');
+                    if (commandParts && commandParts.length > 1) {
+                        if (commandParts[0] === 'npx') {
+                            packageManager = 'npm';
+                            packageName = commandParts.slice(1).join(' ');
+                        } else if (commandParts[0] === 'uvx') {
+                            packageManager = 'uv';
+                            packageName = commandParts.slice(1).join(' ');
+                        }
                     }
                 }
 
                 if (!packageManager || !packageName) {
-                    throw new Error('无法从命令中解析包管理器或包名称。命令必须以 "npx " 或 "uvx " 开头。');
+                    throw new Error(t('customServiceModal.messages.parseCommandFailed'));
                 }
 
                 // Arguments from serviceData.arguments are currently not passed to install_or_add_service
@@ -207,20 +295,41 @@ export function ServicesPage() {
             }
 
             if (res.success) {
-                toast({
-                    title: '创建成功',
-                    description: `服务 ${serviceData.name} 已成功创建/提交安装`
-                });
-                fetchInstalledServices(); // Refresh the list
-                // If res.data contains the new service, could potentially return it
+                if (serviceData.type === 'stdio') {
+                    // stdio 服务通过 install_or_add_service API，需要等待安装完成
+                    toast({
+                        title: t('customServiceModal.messages.installationSubmitted'),
+                        description: t('customServiceModal.messages.installationSubmittedDescription', { serviceName: serviceData.name })
+                    });
+
+                    // 轮询安装状态
+                    const serviceId = res.data?.mcp_service_id;
+                    if (serviceId) {
+                        pollInstallationStatus(serviceId, serviceData.name);
+                    }
+                    // 对于 stdio 服务，立即关闭模态框，因为轮询会处理后续状态
+                    setCustomServiceModalOpen(false);
+                } else {
+                    // sse 和 streamableHttp 服务直接创建完成
+                    toast({
+                        title: t('customServiceModal.messages.createSuccess'),
+                        description: t('customServiceModal.messages.createSuccessDescription', { serviceName: serviceData.name })
+                    });
+                    // 延迟刷新列表，等待服务注册完成
+                    setTimeout(async () => {
+                        await fetchInstalledServices();
+                        // 确保列表刷新完成后再关闭模态框
+                        setCustomServiceModalOpen(false);
+                    }, 1000);
+                }
                 return res.data;
             } else {
                 throw new Error(res.message || '创建失败');
             }
         } catch (error: any) {
             toast({
-                title: '创建失败',
-                description: error.message || '未知错误',
+                title: t('customServiceModal.messages.createFailed'),
+                description: error.message || t('customServiceModal.messages.unknownError'),
                 variant: 'destructive'
             });
             throw error; // Re-throw to be caught by the modal if necessary

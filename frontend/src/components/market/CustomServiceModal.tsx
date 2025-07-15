@@ -79,8 +79,8 @@ const CustomServiceModal: React.FC<CustomServiceModalProps> = ({ open, onClose, 
         if (serviceData.type === 'stdio') {
             if (!serviceData.command?.trim()) {
                 newErrors.command = t('customServiceModal.form.commandPlaceholder');
-            } else if (!serviceData.command.startsWith('npx ') && !serviceData.command.startsWith('uvx ')) {
-                newErrors.command = 'Command must start with npx or uvx';
+            } else if (!serviceData.command.startsWith('npx') && !serviceData.command.startsWith('uvx')) {
+                newErrors.command = t('customServiceModal.messages.commandMustStartWith');
             }
         } else if (serviceData.type === 'sse' || serviceData.type === 'streamableHttp') {
             if (!serviceData.url?.trim()) {
@@ -114,11 +114,8 @@ const CustomServiceModal: React.FC<CustomServiceModalProps> = ({ open, onClose, 
         setSubmissionStatus('submittingApi');
         try {
             await onCreateService(serviceData);
-            toast({
-                title: t('customServiceModal.messages.createSuccess'),
-                description: t('customServiceModal.messages.createSuccessDescription', { serviceName: serviceData.name })
-            });
-            onClose();
+            // 不在这里显示 toast 和关闭模态框，让父组件处理
+            // onClose();
         } catch (error: any) {
             // Extract the actual error message from the API response
             let errorMessage = t('customServiceModal.messages.unknownError');

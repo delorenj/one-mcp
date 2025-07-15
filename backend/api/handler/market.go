@@ -398,6 +398,35 @@ func DiscoverEnvVars(c *gin.Context) {
 	common.RespSuccess(c, response)
 }
 
+// validatePyPIPackage 验证 PyPI 包是否存在
+func validatePyPIPackage(ctx context.Context, packageName string) error {
+	// 构建 PyPI API URL
+	reqURL := fmt.Sprintf("https://pypi.org/pypi/%s/json", packageName)
+
+	// 创建带上下文的请求
+	req, err := http.NewRequestWithContext(ctx, "GET", reqURL, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// 发送请求
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to check package: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// 检查HTTP状态码
+	if resp.StatusCode == http.StatusNotFound {
+		return fmt.Errorf("package not found in PyPI")
+	} else if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("PyPI API returned error: status code %d", resp.StatusCode)
+	}
+
+	return nil
+}
+
 // InstallOrAddService godoc
 // @Summary 安装或添加服务
 // @Description 从市场安装服务或添加现有服务
@@ -491,30 +520,40 @@ func InstallOrAddService(c *gin.Context) {
 			displayName = requestBody.PackageName
 		}
 
-		// 1. 检查必需环境变量（如 FIRECRAWL_API_KEY）是否齐全
+		// 1. 检查包是否存在并获取必需环境变量
 		var requiredEnvVars []string
 		switch requestBody.PackageManager {
 		case "npm":
 			details, err := market.GetNPMPackageDetails(c.Request.Context(), requestBody.PackageName)
-			if err == nil {
-				readme, _ := market.GetNPMPackageReadme(c.Request.Context(), requestBody.PackageName)
-				mcpConfig, _ := market.ExtractMCPConfig(details, readme)
-				if mcpConfig != nil {
-					requiredEnvVars = market.GetEnvVarsFromMCPConfig(mcpConfig)
-				}
-				if len(requiredEnvVars) == 0 {
-					requiredEnvVars = market.GuessMCPEnvVarsFromReadme(readme)
-				}
-				if len(details.RequiresEnv) > 0 {
-					for _, env := range details.RequiresEnv {
-						if !contains(requiredEnvVars, env) {
-							requiredEnvVars = append(requiredEnvVars, env)
-						}
+			if err != nil {
+				// 包不存在或无法获取包信息，直接返回错误
+				common.RespError(c, http.StatusBadRequest,
+					i18n.Translate("package_not_found", lang, requestBody.PackageName), err)
+				return
+			}
+			readme, _ := market.GetNPMPackageReadme(c.Request.Context(), requestBody.PackageName)
+			mcpConfig, _ := market.ExtractMCPConfig(details, readme)
+			if mcpConfig != nil {
+				requiredEnvVars = market.GetEnvVarsFromMCPConfig(mcpConfig)
+			}
+			if len(requiredEnvVars) == 0 {
+				requiredEnvVars = market.GuessMCPEnvVarsFromReadme(readme)
+			}
+			if len(details.RequiresEnv) > 0 {
+				for _, env := range details.RequiresEnv {
+					if !contains(requiredEnvVars, env) {
+						requiredEnvVars = append(requiredEnvVars, env)
 					}
 				}
 			}
 		case "pypi", "uv", "pip":
-			// TODO: PyPI 包类似处理
+			// 简单的 PyPI 包验证 - 通过访问 PyPI API 验证包是否存在
+			if err := validatePyPIPackage(c.Request.Context(), requestBody.PackageName); err != nil {
+				common.RespError(c, http.StatusBadRequest,
+					i18n.Translate("package_not_found", lang, requestBody.PackageName), err)
+				return
+			}
+			// TODO: 实现 PyPI 包的环境变量自动发现
 		}
 		// 检查 user_provided_env_vars 是否齐全
 		var missingEnvVars []string
