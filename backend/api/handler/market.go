@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"one-mcp/backend/common"
@@ -398,33 +399,50 @@ func DiscoverEnvVars(c *gin.Context) {
 	common.RespSuccess(c, response)
 }
 
-// validatePyPIPackage 验证 PyPI 包是否存在
-func validatePyPIPackage(ctx context.Context, packageName string) error {
-	// 构建 PyPI API URL
+// validateAndGetPyPIPackageInfo validates if PyPI package exists and retrieves description info
+func validateAndGetPyPIPackageInfo(ctx context.Context, packageName string) (string, error) {
+	// Build PyPI API URL
 	reqURL := fmt.Sprintf("https://pypi.org/pypi/%s/json", packageName)
 
-	// 创建带上下文的请求
+	// Create request with context
 	req, err := http.NewRequestWithContext(ctx, "GET", reqURL, nil)
 	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
+		return "", fmt.Errorf("failed to create request: %w", err)
 	}
 
-	// 发送请求
+	// Send request
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to check package: %w", err)
+		return "", fmt.Errorf("failed to check package: %w", err)
 	}
 	defer resp.Body.Close()
 
-	// 检查HTTP状态码
+	// Check HTTP status code
 	if resp.StatusCode == http.StatusNotFound {
-		return fmt.Errorf("package not found in PyPI")
+		return "", fmt.Errorf("package not found in PyPI")
 	} else if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("PyPI API returned error: status code %d", resp.StatusCode)
+		return "", fmt.Errorf("PyPI API returned error: status code %d", resp.StatusCode)
 	}
 
-	return nil
+	// Read response content
+	data, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read response: %w", err)
+	}
+
+	// Parse JSON to get package info
+	var result struct {
+		Info struct {
+			Summary string `json:"summary"`
+		} `json:"info"`
+	}
+
+	if err := json.Unmarshal(data, &result); err != nil {
+		return "", fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return result.Info.Summary, nil
 }
 
 // InstallOrAddService godoc
@@ -520,17 +538,21 @@ func InstallOrAddService(c *gin.Context) {
 			displayName = requestBody.PackageName
 		}
 
-		// 1. 检查包是否存在并获取必需环境变量
+		// 1. Check if package exists and get required environment variables and description
 		var requiredEnvVars []string
+		var packageDescription string
 		switch requestBody.PackageManager {
 		case "npm":
 			details, err := market.GetNPMPackageDetails(c.Request.Context(), requestBody.PackageName)
 			if err != nil {
-				// 包不存在或无法获取包信息，直接返回错误
+				// Package not found or unable to get package info, return error immediately
 				common.RespError(c, http.StatusBadRequest,
 					i18n.Translate("package_not_found", lang, requestBody.PackageName), err)
 				return
 			}
+			// Get package description
+			packageDescription = details.Description
+
 			readme, _ := market.GetNPMPackageReadme(c.Request.Context(), requestBody.PackageName)
 			mcpConfig, _ := market.ExtractMCPConfig(details, readme)
 			if mcpConfig != nil {
@@ -547,15 +569,17 @@ func InstallOrAddService(c *gin.Context) {
 				}
 			}
 		case "pypi", "uv", "pip":
-			// 简单的 PyPI 包验证 - 通过访问 PyPI API 验证包是否存在
-			if err := validatePyPIPackage(c.Request.Context(), requestBody.PackageName); err != nil {
+			// PyPI package validation and get description info
+			description, err := validateAndGetPyPIPackageInfo(c.Request.Context(), requestBody.PackageName)
+			if err != nil {
 				common.RespError(c, http.StatusBadRequest,
 					i18n.Translate("package_not_found", lang, requestBody.PackageName), err)
 				return
 			}
-			// TODO: 实现 PyPI 包的环境变量自动发现
+			packageDescription = description
+			// TODO: Implement automatic environment variable discovery for PyPI packages
 		}
-		// 检查 user_provided_env_vars 是否齐全
+		// Check if all required environment variables are provided
 		var missingEnvVars []string
 		for _, env := range requiredEnvVars {
 			if env == "" {
@@ -577,10 +601,16 @@ func InstallOrAddService(c *gin.Context) {
 			return
 		}
 
+		// Use user-provided description, fallback to package description if empty
+		serviceDescription := requestBody.ServiceDescription
+		if serviceDescription == "" {
+			serviceDescription = packageDescription
+		}
+
 		newService := model.MCPService{
 			Name:                  sanitizeServiceName(requestBody.PackageName),
 			DisplayName:           displayName,
-			Description:           requestBody.ServiceDescription,
+			Description:           serviceDescription,
 			Category:              requestBody.Category,
 			Icon:                  requestBody.ServiceIconURL,
 			Type:                  model.ServiceTypeStdio,
@@ -595,14 +625,14 @@ func InstallOrAddService(c *gin.Context) {
 			newService.Category = model.CategoryAI
 		}
 
-		// 检查处理后的服务名称是否已存在
+		// Check if the processed service name already exists
 		existingServiceByName, errByName := model.GetServiceByName(newService.Name)
 		if errByName == nil && existingServiceByName != nil {
 			common.RespErrorStr(c, http.StatusConflict, i18n.Translate("service_name_already_exists", lang, newService.Name))
 			return
 		}
 
-		// 根据包管理器设置Command和ArgsJSON配置
+		// Set Command and ArgsJSON configuration based on package manager
 		log.Printf("[InstallOrAddService] Setting Command and ArgsJSON for PackageManager: %s, PackageName: %s", requestBody.PackageManager, requestBody.PackageName)
 		switch requestBody.PackageManager {
 		case "npm":
@@ -629,7 +659,7 @@ func InstallOrAddService(c *gin.Context) {
 			log.Printf("[InstallOrAddService] Warning: Unknown package manager %s for service %s, Command field will be empty", requestBody.PackageManager, requestBody.PackageName)
 		}
 
-		// 设置DefaultEnvsJSON（安装时的环境变量作为默认配置）
+		// Set DefaultEnvsJSON (environment variables during installation as default configuration)
 		if len(envVarsForTask) > 0 {
 			defaultEnvsJSON, err := json.Marshal(envVarsForTask)
 			if err != nil {
@@ -658,8 +688,8 @@ func InstallOrAddService(c *gin.Context) {
 		}
 		log.Printf("[InstallOrAddService] Successfully created service with ID: %d, Command='%s', ArgsJSON='%s', DefaultEnvsJSON='%s'", newService.ID, newService.Command, newService.ArgsJSON, newService.DefaultEnvsJSON)
 
-		// 注意：不再在安装时创建ConfigService，因为安装时的环境变量是默认配置
-		// ConfigService只在用户需要个人配置时动态创建
+		// Note: No longer create ConfigService during installation, as installation environment variables are default configuration
+		// ConfigService is only created dynamically when users need personal configuration
 
 		installationTask := market.InstallationTask{
 			ServiceID:      newService.ID,
