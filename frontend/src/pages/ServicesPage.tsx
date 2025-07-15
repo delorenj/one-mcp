@@ -243,10 +243,14 @@ export function ServicesPage() {
                 let packageManager = '';
                 const command = serviceData.command?.trim();
 
-                // 从 arguments 中获取包名，如果没有 arguments 则从 command 中解析
+                // Parse arguments and extract package name and custom args
+                let customArgs: string[] = [];
                 if (serviceData.arguments?.trim()) {
-                    // 如果有 arguments，从中获取包名，过滤掉以 '-' 开头的参数
+                    // Parse arguments from the arguments field
                     const argLines = serviceData.arguments.trim().split('\n');
+                    customArgs = argLines.map(line => line.trim()).filter(line => line.length > 0);
+
+                    // Find package name from arguments (first non-flag argument)
                     const packageNameFromArgs = argLines.find(line => {
                         const trimmedLine = line.trim();
                         return trimmedLine && !trimmedLine.startsWith('-');
@@ -260,10 +264,12 @@ export function ServicesPage() {
                         packageName = packageNameFromArgs;
                     }
                 } else {
-                    // 如果没有 arguments，尝试从 command 中解析
+                    // Parse arguments from the command field if no separate arguments
                     const commandParts = command?.split(' ');
                     if (commandParts && commandParts.length > 1) {
-                        // 过滤掉以 '-' 开头的参数，找到第一个包名
+                        customArgs = commandParts.slice(1);
+
+                        // Find package name (first non-flag argument)
                         const packageNameFromCommand = commandParts.slice(1).find(part =>
                             part.trim() && !part.trim().startsWith('-')
                         )?.trim() || '';
@@ -282,20 +288,13 @@ export function ServicesPage() {
                     throw new Error(t('customServiceModal.messages.parseCommandFailed'));
                 }
 
-                // Arguments from serviceData.arguments are currently not passed to install_or_add_service
-                // as the backend handler InstallOrAddService typically auto-generates ArgsJSON.
-                // If custom arguments are essential here, InstallOrAddService would need modification.
-
                 const payload = {
-                    source_type: 'marketplace', // Or another suitable type if backend expects something specific for custom stdio
+                    source_type: 'marketplace',
                     package_name: packageName,
                     package_manager: packageManager,
                     display_name: serviceData.name,
                     user_provided_env_vars: parseEnvironments(serviceData.environments),
-                    // version: 'latest', // Optional: InstallOrAddService might need a version
-                    // service_description: `Custom stdio service: ${serviceData.name}`, // Optional
-                    // category: 'utility', // Optional
-                    // headers: {}, // Not applicable for stdio
+                    custom_args: customArgs.length > 0 ? customArgs : undefined, // Send custom args if available
                 };
                 res = await api.post('/mcp_market/install_or_add_service', payload) as APIResponse<any>;
 

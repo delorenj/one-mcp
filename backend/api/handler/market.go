@@ -445,6 +445,25 @@ func validateAndGetPyPIPackageInfo(ctx context.Context, packageName string) (str
 	return result.Info.Summary, nil
 }
 
+// extractPackageNameWithoutVersion extracts the package name without version specifier
+// Examples: "package@1.0.0" -> "package", "package@latest" -> "package", "package" -> "package"
+func extractPackageNameWithoutVersion(packageNameWithVersion string) string {
+	// Split by '@' and take the first part
+	// Handle scoped packages like "@scope/package@version" -> "@scope/package"
+	if strings.HasPrefix(packageNameWithVersion, "@") {
+		// Scoped package: @scope/package@version
+		parts := strings.SplitN(packageNameWithVersion, "@", 3) // Split into ["", "scope/package", "version"]
+		if len(parts) >= 2 {
+			return "@" + parts[1] // Return "@scope/package"
+		}
+		return packageNameWithVersion
+	} else {
+		// Regular package: package@version
+		parts := strings.SplitN(packageNameWithVersion, "@", 2)
+		return parts[0]
+	}
+}
+
 // InstallOrAddService godoc
 // @Summary 安装或添加服务
 // @Description 从市场安装服务或添加现有服务
@@ -471,6 +490,7 @@ func InstallOrAddService(c *gin.Context) {
 		ServiceIconURL      string                 `json:"service_icon_url"`       // Optional: for creating MCPService
 		Category            model.ServiceCategory  `json:"category"`               // Optional: for creating MCPService
 		Headers             map[string]string      `json:"headers"`                // Optional: for SSE/HTTP services custom headers
+		CustomArgs          []string               `json:"custom_args"`            // Optional: for stdio services custom arguments
 	}
 
 	if err := c.ShouldBindJSON(&requestBody); err != nil {
@@ -506,6 +526,9 @@ func InstallOrAddService(c *gin.Context) {
 			return
 		}
 
+		// Extract package name without version for API calls
+		cleanPackageName := extractPackageNameWithoutVersion(requestBody.PackageName)
+
 		// Check tool availability
 		if requestBody.PackageManager == "npm" && !market.CheckNPXAvailable() {
 			common.RespErrorStr(c, http.StatusInternalServerError, i18n.Translate("npx_not_available", lang))
@@ -517,7 +540,13 @@ func InstallOrAddService(c *gin.Context) {
 			return
 		}
 
-		existingServices, err := model.GetServicesByPackageDetails(requestBody.PackageManager, requestBody.PackageName)
+		// Check for existing services using clean package name, but also check exact match
+		existingServices, err := model.GetServicesByPackageDetails(requestBody.PackageManager, cleanPackageName)
+		if err == nil && len(existingServices) == 0 {
+			// Also check for exact match in case the stored package name includes version
+			existingServices, err = model.GetServicesByPackageDetails(requestBody.PackageManager, requestBody.PackageName)
+		}
+
 		if err == nil && len(existingServices) > 0 {
 			mcpServiceID := existingServices[0].ID
 			if err := addServiceInstanceForUser(c, userID, mcpServiceID, requestBody.UserProvidedEnvVars); err != nil {
@@ -541,9 +570,10 @@ func InstallOrAddService(c *gin.Context) {
 		// 1. Check if package exists and get required environment variables and description
 		var requiredEnvVars []string
 		var packageDescription string
+
 		switch requestBody.PackageManager {
 		case "npm":
-			details, err := market.GetNPMPackageDetails(c.Request.Context(), requestBody.PackageName)
+			details, err := market.GetNPMPackageDetails(c.Request.Context(), cleanPackageName)
 			if err != nil {
 				// Package not found or unable to get package info, return error immediately
 				common.RespError(c, http.StatusBadRequest,
@@ -553,7 +583,7 @@ func InstallOrAddService(c *gin.Context) {
 			// Get package description
 			packageDescription = details.Description
 
-			readme, _ := market.GetNPMPackageReadme(c.Request.Context(), requestBody.PackageName)
+			readme, _ := market.GetNPMPackageReadme(c.Request.Context(), cleanPackageName)
 			mcpConfig, _ := market.ExtractMCPConfig(details, readme)
 			if mcpConfig != nil {
 				requiredEnvVars = market.GetEnvVarsFromMCPConfig(mcpConfig)
@@ -570,7 +600,7 @@ func InstallOrAddService(c *gin.Context) {
 			}
 		case "pypi", "uv", "pip":
 			// PyPI package validation and get description info
-			description, err := validateAndGetPyPIPackageInfo(c.Request.Context(), requestBody.PackageName)
+			description, err := validateAndGetPyPIPackageInfo(c.Request.Context(), cleanPackageName)
 			if err != nil {
 				common.RespError(c, http.StatusBadRequest,
 					i18n.Translate("package_not_found", lang, requestBody.PackageName), err)
@@ -633,11 +663,29 @@ func InstallOrAddService(c *gin.Context) {
 		}
 
 		// Set Command and ArgsJSON configuration based on package manager
-		log.Printf("[InstallOrAddService] Setting Command and ArgsJSON for PackageManager: %s, PackageName: %s", requestBody.PackageManager, requestBody.PackageName)
+		log.Printf("[InstallOrAddService] Setting Command and ArgsJSON for PackageManager: %s, PackageName: %s, CustomArgs: %v", requestBody.PackageManager, requestBody.PackageName, requestBody.CustomArgs)
 		switch requestBody.PackageManager {
 		case "npm":
 			newService.Command = "npx"
-			args := []string{"-y", requestBody.PackageName}
+			var args []string
+			if len(requestBody.CustomArgs) > 0 {
+				// Use custom arguments provided by user
+				args = append(args, requestBody.CustomArgs...)
+				// Ensure package name is included if not already present
+				packageNameFound := false
+				for _, arg := range requestBody.CustomArgs {
+					if arg == requestBody.PackageName {
+						packageNameFound = true
+						break
+					}
+				}
+				if !packageNameFound {
+					args = append(args, requestBody.PackageName)
+				}
+			} else {
+				// Use default arguments
+				args = []string{"-y", requestBody.PackageName}
+			}
 			argsJSON, err := json.Marshal(args)
 			if err != nil {
 				log.Printf("[InstallOrAddService] Error marshaling args for npm package %s: %v", requestBody.PackageName, err)
@@ -647,7 +695,14 @@ func InstallOrAddService(c *gin.Context) {
 			}
 		case "pypi", "uv", "pip":
 			newService.Command = "uvx"
-			args := []string{"--from", requestBody.PackageName, requestBody.PackageName}
+			var args []string
+			if len(requestBody.CustomArgs) > 0 {
+				// Use custom arguments provided by user
+				args = append(args, requestBody.CustomArgs...)
+			} else {
+				// Use default arguments
+				args = []string{"--from", requestBody.PackageName, requestBody.PackageName}
+			}
 			argsJSON, err := json.Marshal(args)
 			if err != nil {
 				log.Printf("[InstallOrAddService] Error marshaling args for python package %s: %v", requestBody.PackageName, err)
