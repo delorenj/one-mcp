@@ -60,7 +60,7 @@ One MCP is a comprehensive management platform for Model Context Protocol (MCP) 
 ### ⚙️ **Advanced Configuration**
 - **Environment Variables**: Flexible configuration management
 - **Database Support**: SQLite (default) with MySQL/PostgreSQL support
-- **Redis Integration**: Optional Redis support for distributed caching and rate limiting
+- **Redis Integration**: Optional Redis support for distributed caching
 - **Docker Ready**: Full Docker support for easy deployment
 
 ![Screenshot](./images/services.png)
@@ -104,7 +104,7 @@ bash ./run.sh
 - **Go**: Version 1.19 or later
 - **Node.js**: Version 16 or later  
 - **Database**: SQLite (default), MySQL, or PostgreSQL
-- **Redis**: Optional, for distributed caching
+- **Redis**: Optional
 
 ### Environment Configuration
 
@@ -128,10 +128,10 @@ PORT=3000
 # PostgreSQL:
 # SQL_DSN=postgres://username:password@localhost/database_name?sslmode=disable
 
-# Redis (optional, for rate limiting)
+# Redis (optional, replace local cache for production environment)
 REDIS_CONN_STRING=redis://localhost:6379
 
-# GitHub API (optional, for rate limiting)
+# GitHub API (optional, for querying npm's github homepage star count, without this, there will be rate limit issues)
 GITHUB_TOKEN=your-github-token
 ```
 

@@ -61,7 +61,7 @@ One MCP 是一个全面的模型上下文协议 (MCP) 服务管理平台。作�
 ### ⚙️ **高级配置**
 - **环境变量**：灵活的配置管理
 - **数据库支持**：SQLite（默认），支持 MySQL/PostgreSQL
-- **Redis 集成**：可选的 Redis 支持，用于分布式缓存和速率限制
+- **Redis 集成**：可选的 Redis 支持，用于分布式缓存
 - **Docker 就绪**：完整的 Docker 支持，便于部署
 
 <!-- 截图占位符 - 服务管理界面 -->
@@ -134,10 +134,10 @@ PORT=3000
 # SQL_DSN=root:password@tcp(localhost:3306)/one_mcp
 # PostgreSQL:
 # SQL_DSN=postgres://username:password@localhost/database_name?sslmode=disable
-# Redis（可选，用于速率限制）
+# Redis（可选，代替本地缓存，用于生产环境）
 REDIS_CONN_STRING=redis://localhost:6379
 
-# GitHub API（可选，用于速率限制）
+# GitHub API（可选，在服务器查询npm所在github主页的star数，不填会有rate limit的问题）
 GITHUB_TOKEN=your-github-token
 ```
 
