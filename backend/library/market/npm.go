@@ -402,74 +402,56 @@ func ConvertNPMToSearchResult(ctx context.Context, npmResult *NPMSearchResult, i
 	return results
 }
 
-// InstallNPMPackage 使用mcp-go客户端安装npm包并返回MCP服务器信息
-func InstallNPMPackage(ctx context.Context, packageName string, version string, workDir string, envVars map[string]string) (*MCPServerInfo, error) {
-	// 构建命令和参数
-	command := "npx"
-	var args []string
+// InstallNPMPackage is a placeholder for the actual implementation of installing an npm package.
+// It will handle the installation and then attempt to initialize it as an MCP server.
+func InstallNPMPackage(ctx context.Context, packageName, version, command string, args []string, workDir string, envVars map[string]string) (*MCPServerInfo, error) {
+	// If a specific version is requested, we might need to adjust the package name for installation,
+	// but for now, the primary command execution relies on the provided `command` and `args`.
+	// The installation logic via `npx` implicitly handles fetching the package.
 
-	if version != "" && version != "latest" {
-		args = append(args, "-y", packageName+"@"+version)
-	} else {
-		args = append(args, "-y", packageName)
-	}
-
-	// 准备环境变量
-	env := os.Environ() // 获取当前环境变量
-	// 添加用户指定的环境变量
+	// Prepare effective environment variables
+	env := os.Environ()
 	for key, value := range envVars {
-		env = append(env, key+"="+value)
+		env = append(env, fmt.Sprintf("%s=%s", key, value))
 	}
 
-	// 设置工作目录
-	if workDir != "" {
-		// 为命令创建一个脚本，包含cd到指定目录的命令
-		scriptContent := fmt.Sprintf("cd %s && npx %s", workDir, strings.Join(args, " "))
-		command = "sh"
-		args = []string{"-c", scriptContent}
-	}
-
-	// 使用mark3labs/mcp-go创建stdio客户端
+	// Use the provided command and args to create the stdio client
+	// The logic assumes that if `command` is 'npx', the installation will be handled automatically.
 	mcpClient, err := client.NewStdioMCPClient(command, env, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create MCP client: %w", err)
 	}
 	defer mcpClient.Close()
 
-	// 设置上下文和超时
-	runCtx, cancel := context.WithTimeout(ctx, 3*time.Minute)
+	// Set context and timeout for MCP initialization
+	initCtx, cancel := context.WithTimeout(ctx, 3*time.Minute)
 	defer cancel()
 
-	// 启动客户端
-	if err := mcpClient.Start(runCtx); err != nil {
-		return nil, fmt.Errorf("failed to start MCP client: %w", err)
+	// Start the client
+	if err := mcpClient.Start(initCtx); err != nil {
+		return nil, fmt.Errorf("failed to start MCP client for %s: %w", packageName, err)
 	}
 
-	// 初始化客户端
+	// Initialize the client
 	initRequest := mcp.InitializeRequest{}
 	initRequest.Params.ProtocolVersion = mcp.LATEST_PROTOCOL_VERSION
 	initRequest.Params.ClientInfo = mcp.Implementation{
 		Name:    "one-mcp",
-		Version: "1.0.0",
+		Version: "1.0.0", // This should be dynamic
 	}
 	initRequest.Params.Capabilities = mcp.ClientCapabilities{}
 
-	initResult, err := mcpClient.Initialize(runCtx, initRequest)
+	initResult, err := mcpClient.Initialize(initCtx, initRequest)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize MCP client: %w", err)
 	}
 
-	// 从初始化结果中收集服务器信息
 	serverInfo := &MCPServerInfo{
 		Name:            initResult.ServerInfo.Name,
 		Version:         initResult.ServerInfo.Version,
 		ProtocolVersion: initResult.ProtocolVersion,
 		Capabilities:    initResult.Capabilities,
 	}
-
-	// 安装成功后，服务会通过 proxy.ServiceManager 在启用时自动初始化
-	// 这里不再需要手动初始化客户端，因为 ServiceManager 会在服务注册时处理
-	log.Printf("NPM package %s installed successfully. Service will be managed by ServiceManager.", packageName)
 
 	return serverInfo, nil
 }

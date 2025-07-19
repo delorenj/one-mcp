@@ -34,7 +34,7 @@ func CheckUVXAvailable() bool {
 // InstallPyPIPackage installs a Python package using uv, creates a virtual environment,
 // and then attempts to initialize it as an MCP server.
 // workDir is currently unused, venvsBaseDir is used instead.
-func InstallPyPIPackage(ctx context.Context, packageName string, version string, workDir string, envVars map[string]string) (*MCPServerInfo, error) {
+func InstallPyPIPackage(ctx context.Context, packageName, version, command string, args []string, workDir string, envVars map[string]string) (*MCPServerInfo, error) {
 	if !CheckUVXAvailable() {
 		return nil, fmt.Errorf("uv command is not available")
 	}
@@ -72,10 +72,24 @@ func InstallPyPIPackage(ctx context.Context, packageName string, version string,
 			packageToInstall, err, stdoutPip.String(), stderrPip.String())
 	}
 
-	// Assuming the executable name is the same as the package name
-	// This might need to be more sophisticated later (e.g., from package metadata)
-	executableName := packageName
-	mcpCommandPath := filepath.Join(pkgVenvDir, "bin", executableName)
+	// Determine the MCP command path
+	var mcpCommandPath string
+	if command == "uv" || command == "uvx" {
+		// For uv/uvx commands, use the system-wide command (not from venv)
+		// uvx is a global tool that manages its own environments
+		mcpCommandPath = command
+	} else if filepath.IsAbs(command) {
+		// If it's an absolute path, use as-is
+		mcpCommandPath = command
+	} else {
+		// For relative commands, try to find in venv first, then system
+		venvCommand := filepath.Join(pkgVenvDir, "bin", command)
+		if _, err := os.Stat(venvCommand); err == nil {
+			mcpCommandPath = venvCommand
+		} else {
+			mcpCommandPath = command // Fall back to system command
+		}
+	}
 
 	// Prepare environment variables for the MCP client
 	effectiveEnv := os.Environ() // Get current environment
@@ -83,9 +97,8 @@ func InstallPyPIPackage(ctx context.Context, packageName string, version string,
 		effectiveEnv = append(effectiveEnv, fmt.Sprintf("%s=%s", key, value))
 	}
 
-	// Use mark3labs/mcp-go to create stdio client
-	// Note: NewStdioMCPClientFunc is used in npm.go for testability, consider similar here.
-	mcpClient, err := client.NewStdioMCPClient(mcpCommandPath, effectiveEnv) // No separate args, command is the full path
+	// Use mark3labs/mcp-go to create stdio client with proper command and args
+	mcpClient, err := client.NewStdioMCPClient(mcpCommandPath, effectiveEnv, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create MCP client for %s: %w", packageName, err)
 	}

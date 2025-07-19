@@ -13,6 +13,8 @@ interface CustomServiceModalProps {
     open: boolean;
     onClose: () => void;
     onCreateService: (serviceData: CustomServiceData) => Promise<void>;
+    autoFillEnv: string;
+    setAutoFillEnv: (value: string) => void;
 }
 
 export interface CustomServiceData {
@@ -28,7 +30,7 @@ export interface CustomServiceData {
 // Define submission status types
 type SubmissionStatus = 'idle' | 'validating' | 'validationSuccess' | 'submittingApi' | 'error';
 
-const CustomServiceModal: React.FC<CustomServiceModalProps> = ({ open, onClose, onCreateService }) => {
+const CustomServiceModal: React.FC<CustomServiceModalProps> = ({ open, onClose, onCreateService, autoFillEnv, setAutoFillEnv }) => {
     const { t } = useTranslation();
     const { toast } = useToast();
     const [submissionStatus, setSubmissionStatus] = useState<SubmissionStatus>('idle');
@@ -42,6 +44,37 @@ const CustomServiceModal: React.FC<CustomServiceModalProps> = ({ open, onClose, 
         headers: ''
     });
     const [errors, setErrors] = useState<Record<string, string>>({});
+
+    useEffect(() => {
+        if (autoFillEnv) {
+            // Extract the environment variable name from autoFillEnv (e.g., "GITHUB_PERSONAL_ACCESS_TOKEN=" -> "GITHUB_PERSONAL_ACCESS_TOKEN")
+            const envVarName = autoFillEnv.split('=')[0];
+
+            setServiceData(prev => {
+                // Parse existing environment variables
+                const existingEnvs = prev.environments ? prev.environments.split('\n').filter(line => line.trim()) : [];
+
+                // Check if the environment variable already exists
+                const envVarExists = existingEnvs.some(line => {
+                    const existingVarName = line.split('=')[0];
+                    return existingVarName === envVarName;
+                });
+
+                // Only add if it doesn't exist
+                if (!envVarExists) {
+                    const newEnvironments = prev.environments ? `${prev.environments}\n${autoFillEnv}` : autoFillEnv;
+                    return {
+                        ...prev,
+                        environments: newEnvironments
+                    };
+                }
+
+                // If it already exists, don't modify the environments
+                return prev;
+            });
+            setAutoFillEnv(''); // Reset after processing
+        }
+    }, [autoFillEnv, setAutoFillEnv]);
 
     useEffect(() => {
         if (open) {
@@ -114,8 +147,8 @@ const CustomServiceModal: React.FC<CustomServiceModalProps> = ({ open, onClose, 
         setSubmissionStatus('submittingApi');
         try {
             await onCreateService(serviceData);
-            // 不在这里显示 toast 和关闭模态框，让父组件处理
-            // onClose();
+            // Remove onSuccess() call - let the parent component handle all success logic
+            setSubmissionStatus('idle'); // Reset to idle after successful submission
         } catch (error: any) {
             // Extract the actual error message from the API response
             let errorMessage = t('customServiceModal.messages.unknownError');
@@ -133,10 +166,9 @@ const CustomServiceModal: React.FC<CustomServiceModalProps> = ({ open, onClose, 
                 description: errorMessage,
                 variant: 'destructive'
             });
-            setSubmissionStatus('error');
+            setSubmissionStatus('idle'); // Reset to idle so user can retry
         } finally {
-            if (submissionStatus === 'submittingApi') {
-            }
+            // No need for additional logic in finally block
         }
     };
 

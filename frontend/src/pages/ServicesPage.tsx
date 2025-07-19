@@ -36,6 +36,7 @@ export function ServicesPage() {
     const [togglingServices, setTogglingServices] = useState<Set<string>>(new Set());
     const [checkingHealthServices, setCheckingHealthServices] = useState<Set<string>>(new Set());
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+    const [autoFillEnv, setAutoFillEnv] = useState('');
 
     const hasFetched = useRef(false);
 
@@ -336,12 +337,31 @@ export function ServicesPage() {
                 throw new Error(res.message || '创建失败');
             }
         } catch (error: any) {
+            // Extract the actual error message from the API response
+            let errorMessage = t('customServiceModal.messages.unknownError');
+            if (error.response?.data?.message) {
+                errorMessage = error.response.data.message;
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+
             toast({
                 title: t('customServiceModal.messages.createFailed'),
-                description: error.message || t('customServiceModal.messages.unknownError'),
+                description: errorMessage,
                 variant: 'destructive'
             });
-            throw error; // Re-throw to be caught by the modal if necessary
+
+            // Auto-fill environment variable if missing
+            if (error.response?.data?.data?.required_env_vars) {
+                const missingEnvs = error.response.data.data.required_env_vars;
+                if (missingEnvs.length > 0) {
+                    const envVarToSet = `${missingEnvs[0]}=`;
+                    setAutoFillEnv(envVarToSet);
+                }
+            }
+
+            // Re-throw the error so CustomServiceModal can handle its loading state
+            throw error;
         }
     };
 
@@ -635,6 +655,8 @@ export function ServicesPage() {
                 open={customServiceModalOpen}
                 onClose={() => setCustomServiceModalOpen(false)}
                 onCreateService={handleCreateCustomService}
+                autoFillEnv={autoFillEnv}
+                setAutoFillEnv={setAutoFillEnv}
             />
 
             <ConfirmDialog

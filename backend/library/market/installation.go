@@ -31,6 +31,8 @@ type InstallationTask struct {
 	PackageName      string                // 包名
 	PackageManager   string                // 包管理器
 	Version          string                // 版本
+	Command          string                // 命令
+	Args             []string              // 参数列表
 	EnvVars          map[string]string     // 环境变量
 	Status           InstallationStatus    // 状态
 	StartTime        time.Time             // 开始时间
@@ -119,7 +121,7 @@ func (m *InstallationManager) runInstallationTask(task *InstallationTask) {
 
 	switch task.PackageManager {
 	case "npm":
-		serverInfo, err = InstallNPMPackage(ctx, task.PackageName, task.Version, "", task.EnvVars)
+		serverInfo, err = InstallNPMPackage(ctx, task.PackageName, task.Version, task.Command, task.Args, "", task.EnvVars)
 		if err == nil && serverInfo != nil {
 			output = fmt.Sprintf("NPM package %s initialized. Server: %s, Version: %s, Protocol: %s", task.PackageName, serverInfo.Name, serverInfo.Version, serverInfo.ProtocolVersion)
 		} else if err == nil {
@@ -128,7 +130,7 @@ func (m *InstallationManager) runInstallationTask(task *InstallationTask) {
 			output = fmt.Sprintf("InstallNPMPackage error: %v", err)
 		}
 	case "pypi", "uv", "pip":
-		serverInfo, err = InstallPyPIPackage(ctx, task.PackageName, task.Version, "", task.EnvVars)
+		serverInfo, err = InstallPyPIPackage(ctx, task.PackageName, task.Version, task.Command, task.Args, "", task.EnvVars)
 		if err == nil && serverInfo != nil {
 			output = fmt.Sprintf("PyPI package %s initialized. Server: %s, Version: %s, Protocol: %s", task.PackageName, serverInfo.Name, serverInfo.Version, serverInfo.ProtocolVersion)
 		} else if err == nil {

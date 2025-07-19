@@ -27,11 +27,11 @@ ENV GO111MODULE=on \
 
 # 根据目标架构设置C编译器
 RUN if [ "$TARGETARCH" = "arm64" ]; then \
-        echo "Setting up for ARM64 cross-compilation"; \
-        export CC=aarch64-linux-gnu-gcc; \
+    echo "Setting up for ARM64 cross-compilation"; \
+    export CC=aarch64-linux-gnu-gcc; \
     elif [ "$TARGETARCH" = "amd64" ]; then \
-        echo "Setting up for AMD64 cross-compilation"; \
-        export CC=x86_64-linux-gnu-gcc; \
+    echo "Setting up for AMD64 cross-compilation"; \
+    export CC=x86_64-linux-gnu-gcc; \
     fi
 
 WORKDIR /build
@@ -39,11 +39,11 @@ WORKDIR /build
 # 优化：先复制依赖文件，利用Docker缓存
 COPY go.mod go.sum ./
 RUN if [ "$TARGETARCH" = "arm64" ]; then \
-        CC=aarch64-linux-gnu-gcc go mod download; \
+    CC=aarch64-linux-gnu-gcc go mod download; \
     elif [ "$TARGETARCH" = "amd64" ]; then \
-        CC=x86_64-linux-gnu-gcc go mod download; \
+    CC=x86_64-linux-gnu-gcc go mod download; \
     else \
-        go mod download; \
+    go mod download; \
     fi
 
 # 然后复制源代码和前端构建产物
@@ -52,18 +52,18 @@ COPY --from=builder /build/dist ./frontend/dist
 
 # 最后构建
 RUN if [ "$TARGETARCH" = "arm64" ]; then \
-        CC=aarch64-linux-gnu-gcc go build -ldflags "-s -w -X 'one-mcp/common.Version=$(cat VERSION)' -extldflags '-static'" -o one-mcp; \
+    CC=aarch64-linux-gnu-gcc go build -ldflags "-s -w -X 'one-mcp/common.Version=$(cat VERSION)' -extldflags '-static'" -o one-mcp; \
     elif [ "$TARGETARCH" = "amd64" ]; then \
-        CC=x86_64-linux-gnu-gcc go build -ldflags "-s -w -X 'one-mcp/common.Version=$(cat VERSION)' -extldflags '-static'" -o one-mcp; \
+    CC=x86_64-linux-gnu-gcc go build -ldflags "-s -w -X 'one-mcp/common.Version=$(cat VERSION)' -extldflags '-static'" -o one-mcp; \
     else \
-        go build -ldflags "-s -w -X 'one-mcp/common.Version=$(cat VERSION)' -extldflags '-static'" -o one-mcp; \
+    go build -ldflags "-s -w -X 'one-mcp/common.Version=$(cat VERSION)' -extldflags '-static'" -o one-mcp; \
     fi
 
 FROM ghcr.io/astral-sh/uv:alpine
 
 RUN apk update \
     && apk upgrade \
-    && apk add --no-cache ca-certificates tzdata nodejs npm \
+    && apk add --no-cache ca-certificates tzdata nodejs npm python3 \
     && update-ca-certificates 2>/dev/null || true
 
 # 创建 /data 目录

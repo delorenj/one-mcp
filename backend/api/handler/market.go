@@ -620,9 +620,10 @@ func InstallOrAddService(c *gin.Context) {
 			}
 		}
 		if len(missingEnvVars) > 0 {
-			msg := "缺少必需环境变量: " + strings.Join(missingEnvVars, ", ")
-			c.JSON(http.StatusOK, common.APIResponse{
-				Success: true,
+			// Use i18n for the error message
+			msg := i18n.Translate("missing_required_env_vars", lang, strings.Join(missingEnvVars, ", "))
+			c.JSON(http.StatusBadRequest, common.APIResponse{ // 使用 400 Bad Request
+				Success: false, // 明确表示失败
 				Message: msg,
 				Data: gin.H{
 					"required_env_vars": missingEnvVars,
@@ -746,12 +747,23 @@ func InstallOrAddService(c *gin.Context) {
 		// Note: No longer create ConfigService during installation, as installation environment variables are default configuration
 		// ConfigService is only created dynamically when users need personal configuration
 
+		// Parse ArgsJSON to get command arguments
+		var args []string
+		if newService.ArgsJSON != "" {
+			if err := json.Unmarshal([]byte(newService.ArgsJSON), &args); err != nil {
+				log.Printf("[InstallOrAddService] Failed to parse ArgsJSON for service %d: %v", newService.ID, err)
+				args = []string{} // Use empty args on parse error
+			}
+		}
+
 		installationTask := market.InstallationTask{
 			ServiceID:      newService.ID,
 			UserID:         userID,
 			PackageName:    requestBody.PackageName,
 			PackageManager: requestBody.PackageManager,
 			Version:        requestBody.Version,
+			Command:        newService.Command,
+			Args:           args,
 			EnvVars:        envVarsForTask,
 		}
 
