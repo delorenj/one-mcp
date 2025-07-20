@@ -106,8 +106,11 @@ export function LoginFormCommon({ onSuccess, isDialogMode }: LoginFormCommonProp
                     description: message
                 });
             }
-        } catch (error: any) {
-            const message = error?.response?.data?.message || error.message || "登录请求失败，请稍后重试。";
+        } catch (error: unknown) {
+            let message = "登录请求失败，请稍后重试。";
+            if (error instanceof Error) {
+                message = (error as any).response?.data?.message || error.message;
+            }
             toast({
                 variant: "destructive",
                 title: "登录错误",

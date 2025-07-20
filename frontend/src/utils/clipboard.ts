@@ -19,7 +19,7 @@ export async function copyToClipboard(text: string): Promise<CopyResult> {
         try {
             await navigator.clipboard.writeText(text);
             return { success: true, method: 'modern' };
-        } catch (error) {
+        } catch {
             return fallbackCopyToClipboard(text);
         }
     }
@@ -116,7 +116,7 @@ function fallbackCopyToClipboard(text: string): Promise<CopyResult> {
                         });
                     }
                 }
-            } catch (error) {
+            } catch {
                 textArea.remove();
                 resolve({
                     success: false,

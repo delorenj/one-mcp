@@ -34,7 +34,9 @@ export const useServerAddressStore = create<ServerAddressState>((set) => ({
             try {
                 const res = await api.get('/option/') as APIResponse;
                 if (res.success && Array.isArray(res.data)) {
-                    const found = res.data.find((item: any) => item.key === 'ServerAddress');
+                    // Define a specific type for the items in the array
+                    type OptionItem = { key: string; value: string };
+                    const found = res.data.find((item: OptionItem) => item.key === 'ServerAddress');
                     if (found) {
                         const serverAddress = found.value;
                         // 保存到 sessionStorage

@@ -64,7 +64,7 @@ export function ProfilePage() {
                         confirmPassword: ''
                     });
                 }
-            } catch (error) {
+            } catch {
                 toast({
                     variant: "destructive",
                     title: t('profile.messages.fetchUserInfoFailed'),
@@ -167,7 +167,7 @@ export function ProfilePage() {
                     description: t('profile.messages.apiKeyRefreshSuccess')
                 });
             }
-        } catch (error) {
+        } catch {
             toast({
                 variant: "destructive",
                 title: t('profile.messages.apiKeyRefreshFailed'),
@@ -201,7 +201,7 @@ export function ProfilePage() {
                     description: t('profile.messages.profileUpdateSuccess')
                 });
             }
-        } catch (error) {
+        } catch {
             toast({
                 variant: "destructive",
                 title: t('profile.messages.profileUpdateFailed'),

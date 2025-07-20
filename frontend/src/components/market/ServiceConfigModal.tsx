@@ -12,14 +12,31 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
+// Define a more specific type for the service object
+interface Service {
+    id: string | number; // 兼容 ServiceType 的 string 类型 id
+    name: string;
+    env_vars?: Record<string, string>;
+    rpd_limit?: number; // 改为可选
+    user_daily_request_count?: number;
+    remaining_requests?: number;
+    // Add other properties from ServiceType to ensure compatibility
+    version?: string;
+    description?: string;
+    source?: string;
+    isInstalled?: boolean;
+    installed_service_id?: number;
+    // Add other properties from the service object as needed
+}
+
 interface ServiceConfigModalProps {
     open: boolean;
-    service: any; // 具体类型可根据实际服务对象定义
+    service: Service | null; // Use the specific type
     onClose: () => void;
     onSaveVar: (varName: string, value: string) => Promise<void>;
 }
 
-function getEnvVars(service: any): Record<string, string> {
+function getEnvVars(service: Service | null): Record<string, string> {
     if (!service) return {};
     if (service.env_vars && typeof service.env_vars === 'object') return service.env_vars;
     return {};
@@ -92,8 +109,12 @@ const ServiceConfigModal: React.FC<ServiceConfigModalProps> = ({ open, service, 
         setError(null);
         try {
             await onSaveVar(varName, envValues[varName]);
-        } catch (e: any) {
-            setError(e.message || t('serviceConfigModal.messages.saveFailed'));
+        } catch (e: unknown) {
+            if (e instanceof Error) {
+                setError(e.message || t('serviceConfigModal.messages.saveFailed'));
+            } else {
+                setError(t('serviceConfigModal.messages.saveFailed'));
+            }
         }
         setSaving(null);
     };
@@ -108,7 +129,11 @@ const ServiceConfigModal: React.FC<ServiceConfigModalProps> = ({ open, service, 
     // 生成 SSE JSON 配置
     const generateSSEJSONConfig = () => {
         const serviceName = service?.name || 'unknown-service';
-        const serverConfig: any = {
+        const serverConfig: {
+            type: 'sse';
+            url: string;
+            header?: { Authorization: string };
+        } = {
             type: 'sse',
             url: sseEndpoint
         };

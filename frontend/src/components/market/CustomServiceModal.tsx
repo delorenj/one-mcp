@@ -121,7 +121,7 @@ const CustomServiceModal: React.FC<CustomServiceModalProps> = ({ open, onClose, 
             } else {
                 try {
                     new URL(serviceData.url);
-                } catch (e) {
+                } catch {
                     newErrors.url = 'Please enter a valid URL';
                 }
             }
@@ -149,15 +149,24 @@ const CustomServiceModal: React.FC<CustomServiceModalProps> = ({ open, onClose, 
             await onCreateService(serviceData);
             // Remove onSuccess() call - let the parent component handle all success logic
             setSubmissionStatus('idle'); // Reset to idle after successful submission
-        } catch (error: any) {
+        } catch (error: unknown) {
             // Extract the actual error message from the API response
             let errorMessage = t('customServiceModal.messages.unknownError');
 
-            if (error.response?.data?.message) {
-                // Backend returned a specific error message
-                errorMessage = error.response.data.message;
-            } else if (error.message) {
-                // Fallback to the general error message
+            // Type-safe error handling for axios-like error objects
+            if (error &&
+                typeof error === 'object' &&
+                'response' in error) {
+                const axiosError = error as {
+                    response?: {
+                        data?: { message?: string }
+                    }
+                };
+
+                if (axiosError.response?.data?.message) {
+                    errorMessage = axiosError.response.data.message;
+                }
+            } else if (error instanceof Error) {
                 errorMessage = error.message;
             }
 
@@ -192,7 +201,7 @@ const CustomServiceModal: React.FC<CustomServiceModalProps> = ({ open, onClose, 
     const isBusy = submissionStatus === 'validating' || submissionStatus === 'validationSuccess' || submissionStatus === 'submittingApi';
 
     return (
-        <Dialog open={open} onOpenChange={(isOpen) => {
+        <Dialog open={open} onOpenChange={(isOpen: boolean) => {
             if (!isOpen && !isBusy) {
                 triggerCloseFromDialog();
             }

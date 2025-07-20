@@ -72,7 +72,7 @@ export function ServiceMarketplace({ onSelectService }: { onSelectService: (serv
 
         setPendingServiceId(serviceId);
         setCurrentInstallingService(service);
-        let envVars = { ...extraEnvVars };
+        const envVars = { ...extraEnvVars };
 
         while (true) {
             const response = await installService(serviceId, envVars);

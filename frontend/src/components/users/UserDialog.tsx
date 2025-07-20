@@ -75,10 +75,14 @@ export const UserDialog: React.FC<UserDialogProps> = ({ isOpen, onClose, onSave,
                     variant: 'destructive'
                 });
             }
-        } catch (error: any) {
+        } catch (error: unknown) {
+            let message = t('userDialog.messages.networkError');
+            if (error instanceof Error) {
+                message = error.message;
+            }
             toast({
                 title: currentUser ? t('userDialog.messages.updateFailed') : t('userDialog.messages.createFailed'),
-                description: error.message || t('userDialog.messages.networkError'),
+                description: message,
                 variant: 'destructive'
             });
         } finally {

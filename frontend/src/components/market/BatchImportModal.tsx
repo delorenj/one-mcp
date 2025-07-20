@@ -41,7 +41,7 @@ const BatchImportModal: React.FC<BatchImportModalProps> = ({
         // Basic JSON validation
         try {
             JSON.parse(jsonInput);
-        } catch (error) {
+        } catch {
             alert(t('batchImport.invalidJsonError'));
             return;
         }

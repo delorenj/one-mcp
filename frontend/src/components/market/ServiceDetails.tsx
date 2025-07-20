@@ -200,10 +200,14 @@ export function ServiceDetails({ onBack }: { onBack: () => void }) {
                 // 移除 searchServices() 调用，依赖 uninstallService 中的乐观更新
                 await fetchServiceDetails(selectedService.id, selectedService.name, selectedService.source); // 重新获取当前服务详情
 
-            } catch (error: any) {
+            } catch (error: unknown) {
+                let message = "Failed to uninstall service.";
+                if (error instanceof Error) {
+                    message = error.message;
+                }
                 toast({
                     title: "Uninstall Failed",
-                    description: error.message || "Failed to uninstall service.",
+                    description: message,
                     variant: "destructive"
                 });
             }

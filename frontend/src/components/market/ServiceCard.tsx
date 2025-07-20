@@ -94,11 +94,15 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, onSelect, onInstall 
                 title: "Uninstall Complete",
                 description: `${service.name} has been successfully uninstalled.`
             });
-        } catch (error: any) {
+        } catch (error: unknown) {
+            let message = "Failed to uninstall service.";
+            if (error instanceof Error) {
+                message = error.message;
+            }
             toast({
                 variant: "destructive",
                 title: "Uninstall Failed",
-                description: error.message || "Failed to uninstall service."
+                description: message
             });
         }
     };
@@ -117,7 +121,7 @@ const ServiceCard: React.FC<ServiceCardProps> = ({ service, onSelect, onInstall 
                 if (pathParts.length > 0) {
                     return pathParts[0]; // GitHub owner/org
                 }
-            } catch (e) {
+            } catch {
                 // Fall through to default if URL parsing fails
             }
         }
