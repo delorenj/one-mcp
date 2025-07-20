@@ -63,7 +63,7 @@ FROM ghcr.io/astral-sh/uv:alpine
 
 RUN apk update \
     && apk upgrade \
-    && apk add --no-cache ca-certificates tzdata nodejs npm python3 \
+    && apk add --no-cache ca-certificates tzdata nodejs npm python3 git \
     && update-ca-certificates 2>/dev/null || true
 
 # 创建 /data 目录
