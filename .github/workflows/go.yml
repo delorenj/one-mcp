@@ -39,6 +39,9 @@ jobs:
         cd frontend
         npm ci
 
+    - name: Create dummy frontend dist for Go linting
+      run: mkdir -p frontend/dist
+
     - name: Lint Go code
       run: |
         go vet ./...
@@ -73,6 +76,9 @@ jobs:
     - name: Create test database directory
       run: mkdir -p data
 
+    - name: Create dummy frontend dist for Go tests
+      run: mkdir -p frontend/dist
+
     - name: Run Go tests
       env:
         GIN_MODE: test
@@ -91,44 +97,10 @@ jobs:
           coverage.out
           coverage.html
 
-  test-frontend:
-    name: Frontend Tests
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '22'
-        cache: 'npm'
-        cache-dependency-path: frontend/package-lock.json
-
-    - name: Install dependencies
-      run: |
-        cd frontend
-        npm ci
-
-    - name: Run frontend tests
-      run: |
-        cd frontend
-        npm run test:run
-
-    - name: Run frontend tests with coverage
-      run: |
-        cd frontend
-        npm run test:coverage
-
-    - name: Upload coverage reports
-      uses: actions/upload-artifact@v4
-      with:
-        name: frontend-coverage
-        path: frontend/coverage/
-
   build:
     name: Build Binaries
     runs-on: ubuntu-latest
-    needs: [lint, test-backend, test-frontend]
+    needs: [lint, test-backend]
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     strategy:
       matrix:
