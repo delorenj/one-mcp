@@ -40,7 +40,7 @@ jobs:
         npm ci
 
     - name: Create dummy frontend dist for Go linting
-      run: mkdir -p frontend/dist
+      run: mkdir -p frontend/dist && touch frontend/dist/.gitkeep
 
     - name: Lint Go code
       run: |
@@ -77,7 +77,7 @@ jobs:
       run: mkdir -p data
 
     - name: Create dummy frontend dist for Go tests
-      run: mkdir -p frontend/dist
+      run: mkdir -p frontend/dist && touch frontend/dist/.gitkeep
 
     - name: Run Go tests
       env:
