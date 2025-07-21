@@ -52,7 +52,7 @@ func sanitizeURLForDisplay(rawURL string) string {
 // sanitizeServiceName ensures the service name is URL-friendly and consistent.
 // It trims spaces, replaces whitespace with dashes, collapses multiple dashes,
 // converts to lower-case (affecting ASCII letters only) and removes leading/trailing dashes.
-// Chinese and other Unicode letters are preserved untouched.
+// Unicode letters are preserved untouched.
 func sanitizeServiceName(raw string) string {
 	if raw == "" {
 		return ""

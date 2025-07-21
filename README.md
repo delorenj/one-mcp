@@ -1,4 +1,3 @@
-
 # One MCP
 
 <div align="center">
@@ -61,7 +60,7 @@ One MCP is a comprehensive management platform for Model Context Protocol (MCP) 
 - **Secure Authentication**: Token-based authentication with refresh token support
 
 ### 🌐 **Internationalization**
-- **Multi-Language Support**: English and Chinese (Simplified) interface
+- **Multi-Language Support**: English interface
 - **Localized Content**: Fully translated user interface and error messages
 - **Language Persistence**: User language preferences saved across sessions
 
@@ -237,64 +236,3 @@ The application provides RESTful APIs for all functionality:
 ```
 
 ### Project Structure
-
-```
-one-mcp/
-├── backend/         # Go backend code
-├── frontend/        # React frontend code  
-├── data/           # Database and uploads
-├── main.go         # Application entry point
-├── build.sh        # Production build script
-└── run.sh          # Development script
-```
-
-### Testing
-
-```bash
-# Frontend tests
-cd frontend && npm test
-
-# Backend tests
-go test ./...
-```
-
-For detailed development instructions, see [DEVELOPMENT.md](./DEVELOPMENT.md).
-
-## Contributing
-
-We welcome contributions! Please see our contributing guidelines:
-
-1. **Fork** the repository
-2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
-3. **Commit** your changes (`git commit -m 'Add amazing feature'`)
-4. **Push** to the branch (`git push origin feature/amazing-feature`)
-5. **Open** a Pull Request
-
-### Development Guidelines
-
-- Follow Go and TypeScript best practices
-- Add tests for new functionality
-- Update documentation as needed
-- Ensure all tests pass before submitting
-
-## Roadmap
-
-
-## Support
-
-- **Documentation**: [Wiki](https://github.com/burugo/one-mcp/wiki)
-- **Issues**: [GitHub Issues](https://github.com/burugo/one-mcp/issues)
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-<div align="center">
-
-**[⭐ Star this project](https://github.com/burugo/one-mcp)** if you find it helpful!
-
-Made with ❤️ by the One MCP team
-
-</div>

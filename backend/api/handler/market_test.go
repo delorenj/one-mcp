@@ -59,7 +59,7 @@ func TestSanitizeServiceName(t *testing.T) {
 			expected: "my-service-name",
 		},
 		{
-			name:     "Chinese characters",
+			name:     "Unicode characters",
 			input:    "我的服务 Test",
 			expected: "我的服务-test",
 		},

@@ -14,7 +14,7 @@ func GetStatus(c *gin.Context) {
 	// Get current language from context (set by LangMiddleware)
 	lang := c.GetString("lang")
 	if lang == "" {
-		lang = "zh-CN" // Default language
+		lang = "en" // Default language
 	}
 
 	c.JSON(http.StatusOK, gin.H{

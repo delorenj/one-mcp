@@ -42,12 +42,13 @@ export function DashboardPage() {
         const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
         const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
 
-        if (i18n.language === 'zh-CN') {
-            if (days > 0) {
-                return `${days}天 ${hours}小时 ${minutes}分钟`;
-            } else if (hours > 0) {
-                return `${hours}小时 ${minutes}分钟`;
-            } else {
+        if (days > 0) {
+            return `${days}d ${hours}h ${minutes}m`;
+        } else if (hours > 0) {
+            return `${hours}h ${minutes}m`;
+        } else {
+            return `${minutes}m`;
+        }
                 return `${minutes}分钟`;
             }
         } else {

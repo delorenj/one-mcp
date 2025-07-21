@@ -11,7 +11,7 @@ func LangMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		lang := c.GetHeader("Accept-Language")
 		if lang == "" {
-			lang = "zh-CN" // 默认中文
+			lang = "en" // default English
 		} else {
 			// 只取第一个语言
 			lang = strings.Split(lang, ",")[0]

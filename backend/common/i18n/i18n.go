@@ -8,12 +8,12 @@ import (
 	"sync"
 )
 
-// 默认语言
+// Default language
 const (
 	DefaultLang = "en"
 )
 
-// 语言资源映射
+// Language resource mapping
 var (
 	messages     = make(map[string]map[string]string)
 	messagesLock sync.RWMutex
