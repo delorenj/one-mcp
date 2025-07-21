@@ -8,13 +8,10 @@ import {
 } from '@/components/ui/select';
 import { Globe } from 'lucide-react';
 
-// 语言配置 - 支持未来扩展
+// Language configuration
 const languages = [
     { code: 'en', name: 'English', nativeName: 'EN' },
-    { code: 'zh-CN', name: 'Chinese (Simplified)', nativeName: '中文' },
-    // 未来可以轻松添加更多语言：
-    // { code: 'ja', name: 'Japanese', nativeName: '日本語' },
-    // { code: 'ko', name: 'Korean', nativeName: '한국어' },
+    // Future languages can be added here:
     // { code: 'fr', name: 'French', nativeName: 'Français' },
     // { code: 'de', name: 'German', nativeName: 'Deutsch' },
     // { code: 'es', name: 'Spanish', nativeName: 'Español' },

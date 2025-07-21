@@ -11,31 +11,31 @@ import (
 	"github.com/burugo/thing"
 )
 
-// HealthCacheManager 健康状态缓存管理器 - 基于 Thing ORM 缓存
+// HealthCacheManager manages health status cache based on Thing ORM cache
 type HealthCacheManager struct {
 	cacheClient thing.CacheClient
 	expireTime  time.Duration
-	mutex       sync.RWMutex // 用于保护并发访问
+	mutex       sync.RWMutex // For protecting concurrent access
 }
 
-// NewHealthCacheManager 创建新的健康状态缓存管理器
+// NewHealthCacheManager creates a new health status cache manager
 func NewHealthCacheManager(expireTime time.Duration) *HealthCacheManager {
 	if expireTime <= 0 {
-		expireTime = 1 * time.Hour // 默认1小时过期
+		expireTime = 1 * time.Hour // Default 1 hour expiration
 	}
 
 	return &HealthCacheManager{
-		cacheClient: thing.Cache(), // 使用 Thing ORM v0.1.17 的全局缓存
+		cacheClient: thing.Cache(), // Uses Thing ORM v0.1.17 global cache
 		expireTime:  expireTime,
 	}
 }
 
-// generateCacheKey 生成服务健康状态的缓存键
+// generateCacheKey generates cache key for service health status
 func (hcm *HealthCacheManager) generateCacheKey(serviceID int64) string {
 	return fmt.Sprintf("health:service:%d", serviceID)
 }
 
-// SetServiceHealth 设置服务健康状态到缓存
+// SetServiceHealth sets service health status to cache
 func (hcm *HealthCacheManager) SetServiceHealth(serviceID int64, health *ServiceHealth) {
 	if health == nil {
 		return
@@ -47,17 +47,17 @@ func (hcm *HealthCacheManager) SetServiceHealth(serviceID int64, health *Service
 	ctx := context.Background()
 	cacheKey := hcm.generateCacheKey(serviceID)
 
-	// 创建健康状态的副本以避免并发修改
+	// Create a copy of health status to avoid concurrent modifications
 	healthCopy := *health
 
-	// 将 ServiceHealth 序列化为 JSON 存储到缓存
+	// Serialize ServiceHealth to JSON for cache storage
 	healthJSON, err := json.Marshal(&healthCopy)
 	if err != nil {
 		log.Printf("Error marshaling health status for service %d: %v", serviceID, err)
 		return
 	}
 
-	// 使用 Thing ORM 缓存设置值
+	// Use Thing ORM cache to set value
 	err = hcm.cacheClient.Set(ctx, cacheKey, string(healthJSON), hcm.expireTime)
 	if err != nil {
 		log.Printf("Error setting health status cache for service %d: %v", serviceID, err)
@@ -67,7 +67,7 @@ func (hcm *HealthCacheManager) SetServiceHealth(serviceID int64, health *Service
 	log.Printf("Successfully cached health status for service %d (key: %s)", serviceID, cacheKey)
 }
 
-// GetServiceHealth 从缓存获取服务健康状态
+// GetServiceHealth retrieves service health status from cache
 func (hcm *HealthCacheManager) GetServiceHealth(serviceID int64) (*ServiceHealth, bool) {
 	hcm.mutex.RLock()
 	defer hcm.mutex.RUnlock()
@@ -75,28 +75,28 @@ func (hcm *HealthCacheManager) GetServiceHealth(serviceID int64) (*ServiceHealth
 	ctx := context.Background()
 	cacheKey := hcm.generateCacheKey(serviceID)
 
-	// 从 Thing ORM 缓存获取值
+	// Get value from Thing ORM cache
 	healthJSON, err := hcm.cacheClient.Get(ctx, cacheKey)
 	if err != nil {
-		// 缓存中不存在或其他错误
+		// Not found in cache or other error
 		return nil, false
 	}
 
-	// 反序列化 JSON 为 ServiceHealth 结构
+	// Deserialize JSON to ServiceHealth struct
 	var health ServiceHealth
 	err = json.Unmarshal([]byte(healthJSON), &health)
 	if err != nil {
 		log.Printf("Error unmarshaling health status for service %d: %v", serviceID, err)
-		// 如果反序列化失败，删除无效的缓存条目
+		// If deserialization fails, delete invalid cache entry
 		go hcm.DeleteServiceHealth(serviceID)
 		return nil, false
 	}
 
-	// 返回健康状态的副本
+	// Return a copy of health status
 	return &health, true
 }
 
-// DeleteServiceHealth 从缓存删除服务健康状态
+// DeleteServiceHealth deletes service health status from cache
 func (hcm *HealthCacheManager) DeleteServiceHealth(serviceID int64) {
 	hcm.mutex.Lock()
 	defer hcm.mutex.Unlock()
@@ -112,18 +112,18 @@ func (hcm *HealthCacheManager) DeleteServiceHealth(serviceID int64) {
 	}
 }
 
-// CleanExpiredEntries Thing ORM 缓存自动处理过期，此方法保留兼容性但不执行操作
+// CleanExpiredEntries is kept for compatibility but does nothing since Thing ORM cache handles expiration automatically
 func (hcm *HealthCacheManager) CleanExpiredEntries() {
-	// Thing ORM 缓存会自动处理过期条目
-	// 此方法保留以维持接口兼容性
+	// Thing ORM cache handles expiration automatically
+	// This method is kept to maintain interface compatibility
 	log.Printf("CleanExpiredEntries called - Thing ORM cache handles expiration automatically")
 }
 
-// GetCacheStats 获取缓存统计信息
+// GetCacheStats retrieves cache statistics
 func (hcm *HealthCacheManager) GetCacheStats() map[string]interface{} {
 	ctx := context.Background()
 
-	// 获取 Thing ORM 缓存统计信息
+	// Get Thing ORM cache statistics
 	var thingCacheStats map[string]interface{}
 	if hcm.cacheClient != nil {
 		stats := hcm.cacheClient.GetCacheStats(ctx)
@@ -132,7 +132,7 @@ func (hcm *HealthCacheManager) GetCacheStats() map[string]interface{} {
 		}
 	}
 
-	// 组合我们自己的统计信息
+	// Combine our own statistics
 	combinedStats := map[string]interface{}{
 		"expire_time":      hcm.expireTime.String(),
 		"cache_type":       "thing_orm_cache",
@@ -142,21 +142,21 @@ func (hcm *HealthCacheManager) GetCacheStats() map[string]interface{} {
 	return combinedStats
 }
 
-// Shutdown 关闭缓存管理器
+// Shutdown shuts down the cache manager
 func (hcm *HealthCacheManager) Shutdown() {
-	// Thing ORM 缓存是全局的，不需要显式关闭
-	// 此方法保留以维持接口兼容性
+	// Thing ORM cache is global and doesn't need explicit closing
+	// This method is kept to maintain interface compatibility
 	log.Printf("HealthCacheManager shutdown called - Thing ORM cache is global and managed separately")
 }
 
-// 全局健康状态缓存管理器实例
+// Global health status cache manager instance
 var globalHealthCacheManager *HealthCacheManager
 var healthCacheOnce sync.Once
 
-// GetHealthCacheManager 获取全局健康状态缓存管理器实例
+// GetHealthCacheManager gets the global health status cache manager instance
 func GetHealthCacheManager() *HealthCacheManager {
 	healthCacheOnce.Do(func() {
-		globalHealthCacheManager = NewHealthCacheManager(1 * time.Hour) // 确保这里也使用1小时
+		globalHealthCacheManager = NewHealthCacheManager(1 * time.Hour) // Ensure 1 hour is used here too
 	})
 	return globalHealthCacheManager
 }

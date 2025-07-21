@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// HealthChecker 负责定期检查服务的健康状态
+// HealthChecker is responsible for periodically checking service health status
 type HealthChecker struct {
 	services        map[int64]Service
 	servicesMu      sync.RWMutex
@@ -18,10 +18,10 @@ type HealthChecker struct {
 	lastUpdateTimes map[int64]time.Time
 }
 
-// NewHealthChecker 创建一个新的健康检查管理器
+// NewHealthChecker creates a new health check manager
 func NewHealthChecker(checkInterval time.Duration) *HealthChecker {
 	if checkInterval <= 0 {
-		checkInterval = 1 * time.Minute // 默认检查间隔为1分钟
+		checkInterval = 1 * time.Minute // Default check interval is 1 minute
 	}
 
 	return &HealthChecker{
@@ -33,7 +33,7 @@ func NewHealthChecker(checkInterval time.Duration) *HealthChecker {
 	}
 }
 
-// RegisterService 注册一个服务到健康检查管理器
+// RegisterService registers a service to the health check manager
 func (hc *HealthChecker) RegisterService(service Service) {
 	hc.servicesMu.Lock()
 	_, exists := hc.services[service.ID()]
@@ -51,7 +51,7 @@ func (hc *HealthChecker) RegisterService(service Service) {
 	}
 }
 
-// UnregisterService 从健康检查管理器移除一个服务
+// UnregisterService removes a service from the health check manager
 func (hc *HealthChecker) UnregisterService(serviceID int64) {
 	hc.servicesMu.Lock()
 	defer hc.servicesMu.Unlock()
@@ -60,7 +60,7 @@ func (hc *HealthChecker) UnregisterService(serviceID int64) {
 	delete(hc.lastUpdateTimes, serviceID)
 }
 
-// Start 启动健康检查任务
+// Start starts the health check task
 func (hc *HealthChecker) Start() {
 	if hc.running {
 		return
@@ -70,7 +70,7 @@ func (hc *HealthChecker) Start() {
 	go hc.runChecks()
 }
 
-// Stop 停止健康检查任务
+// Stop stops the health check task
 func (hc *HealthChecker) Stop() {
 	if !hc.running {
 		return
@@ -80,12 +80,12 @@ func (hc *HealthChecker) Stop() {
 	hc.running = false
 }
 
-// runChecks 运行定期健康检查任务
+// runChecks runs periodic health check tasks
 func (hc *HealthChecker) runChecks() {
 	ticker := time.NewTicker(hc.checkInterval)
 	defer ticker.Stop()
 
-	// 立即进行一次检查
+	// Check immediately
 	hc.checkAllServices()
 
 	for {
@@ -98,7 +98,7 @@ func (hc *HealthChecker) runChecks() {
 	}
 }
 
-// checkAllServices 检查所有注册的服务
+// checkAllServices checks all registered services
 func (hc *HealthChecker) checkAllServices() {
 	hc.servicesMu.RLock()
 	services := make([]Service, 0, len(hc.services))

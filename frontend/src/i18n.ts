@@ -4,45 +4,44 @@ import HttpBackend from 'i18next-http-backend';
 import LanguageDetector from 'i18next-browser-languagedetector';
 
 i18n
-    // 使用 HTTP 后端加载翻译文件
+    // Load translation files using HTTP backend
     .use(HttpBackend)
-    // 使用浏览器语言检测器
+    // Detect browser language
     .use(LanguageDetector)
-    // 与 React 集成
+    // Pass i18n instance to react-i18next
     .use(initReactI18next)
-    // 初始化 i18next
     .init({
-        // 语言检测配置
+        // Language detection options
         detection: {
-            // 检测顺序：localStorage -> navigator -> 默认语言
+            // Detection order: localStorage -> navigator -> default
             order: ['localStorage', 'navigator'],
-            // 缓存用户选择到 localStorage
+            // Cache user choice to localStorage
             caches: ['localStorage'],
-            // localStorage 中的键名
+            // localStorage key name
             lookupLocalStorage: 'i18nextLng',
         },
 
-        // 支持的语言列表（BCP 47 标准）
-        supportedLngs: ['en', 'zh-CN'],
+        // Supported languages (BCP 47 standard)
+        supportedLngs: ['en'],
 
-        // 后备语言
+        // Fallback language
         fallbackLng: 'en',
 
-        // 默认命名空间
+        // Default namespace
         defaultNS: 'translation',
 
-        // HTTP 后端配置
+        // Backend options
         backend: {
-            // 翻译文件的加载路径
+            // Path to translation files
             loadPath: '/locales/{{lng}}/{{ns}}.json',
         },
 
-        // 调试模式（开发环境）
+        // Debug mode (development only)
         debug: import.meta.env.DEV,
 
-        // 插值配置
+        // Interpolation options
         interpolation: {
-            // React 已经安全地转义了，所以不需要额外转义
+            // React already does escaping
             escapeValue: false,
         },
     });
